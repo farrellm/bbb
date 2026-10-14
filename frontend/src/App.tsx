@@ -7,6 +7,7 @@ import ItemDetail from "./pages/ItemDetail";
 import Join from "./pages/Join";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Privacy from "./pages/Privacy";
 import Settings from "./pages/Settings";
 import SignedIn from "./pages/SignedIn";
 import Timeline from "./pages/Timeline";
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/join" element={<Join />} />
       <Route path="/signed-in" element={<SignedIn />} />
+      <Route path="/privacy" element={<Privacy />} />
       <Route
         element={
           <RequireAuth>

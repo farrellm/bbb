@@ -1,4 +1,5 @@
-import { Alert, Box, Button, Typography } from "@mui/material";
+import { Alert, Box, Button, Link, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../auth/useAuth";
@@ -125,7 +126,10 @@ export default function SignIn({
         </Box>
       )}
       <Typography variant="body2" color="text.secondary" sx={{ mt: 6 }}>
-        Unofficial. Reads the public Big Blue Bulletin page.
+        Unofficial. Reads the public Big Blue Bulletin page.{" "}
+        <Link component={RouterLink} to="/privacy" color="inherit">
+          Privacy
+        </Link>
       </Typography>
     </Page>
   );

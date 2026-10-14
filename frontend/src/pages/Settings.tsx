@@ -1,4 +1,5 @@
-import { Alert, Avatar, Box, Button, Typography } from "@mui/material";
+import { Alert, Avatar, Box, Button, Link, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router";
 import { type ReactNode, useState } from "react";
 import { api, data, type Invite } from "../api/client";
 import { useAuth } from "../auth/useAuth";
@@ -44,7 +45,10 @@ export default function Settings() {
 
       <Section title="About">
         <Typography>
-          Unofficial. Reads the public Big Blue Bulletin page.
+          Unofficial. Reads the public Big Blue Bulletin page.{" "}
+          <Link component={RouterLink} to="/privacy">
+            Privacy
+          </Link>
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           BBB Watch checks the page every few minutes and keeps every version of
