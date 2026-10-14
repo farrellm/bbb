@@ -30,3 +30,12 @@ export GOOGLE_CLIENT_ID=
 export GOOGLE_CLIENT_SECRET=
 # Comma-separated emails that become admins on sign-in and need no invite.
 export ADMIN_EMAILS=
+
+# Web Push. Generate a key pair once with `cd backend && go run ./cmd/server
+# -gen-vapid`; changing it invalidates every device's subscription. Unset,
+# push is off (events are still recorded).
+export VAPID_PUBLIC=
+export VAPID_PRIVATE=
+# Who push services contact about this sender: mailto: or https:. Defaults
+# to mailto:$CONTACT_EMAIL, else PUBLIC_URL.
+# export VAPID_SUBJECT=mailto:you@example.org

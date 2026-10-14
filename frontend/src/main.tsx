@@ -5,9 +5,14 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
+import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import { AuthProvider } from "./auth/AuthContext";
 import theme from "./theme";
+
+// The service worker caches the app shell and shows notifications. A new
+// one takes over as soon as it installs, and the page reloads onto it.
+registerSW({ immediate: true });
 
 const root = document.getElementById("root");
 if (root === null) throw new Error("no #root");

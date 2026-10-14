@@ -10,7 +10,7 @@ See [docs/DESIGN.md](docs/DESIGN.md) for the design and milestones.
 
 ## Status
 
-Milestones 1 and 2 are done:
+Milestones 1 to 3 are done:
 
 - **Scraper core:** the poller fetches the page, parses the four divisions,
   normalizes each item, detects signups and deadlines, and records
@@ -18,6 +18,9 @@ Milestones 1 and 2 are done:
 - **Read-only web app:** Google sign-in with invites (plus the iOS
   home-screen handoff), the feed with unread marks and signup flyers, item
   history, the timeline, and word-level diffs.
+- **Push:** Web Push notifications through a service worker, filtered by
+  each parent's preferences, batched when a run brings many changes, with a
+  test button in Settings.
 
 ## Running locally
 
@@ -36,6 +39,13 @@ accounts need an invite unless their email is in `ADMIN_EMAILS`:
 ```sh
 cd backend && go run ./cmd/server -create-invite   # prints a /join link
 go run ./cmd/server -list-users
+```
+
+Notifications need a VAPID key pair in `.envrc`; generate it once (a new
+pair invalidates every device's subscription):
+
+```sh
+cd backend && go run ./cmd/server -gen-vapid
 ```
 
 ## Deployment

@@ -121,6 +121,7 @@ type statusJSON struct {
 	CheckedAt *time.Time `json:"checkedAt"`
 	OKAt      *time.Time `json:"okAt"`
 	Failing   bool       `json:"failing"`
+	Unread    int        `json:"unread"`
 }
 
 type inviteJSON struct {
@@ -139,4 +140,45 @@ type scrapeRunJSON struct {
 	ItemCount  *int       `json:"itemCount"`
 	Suspect    bool       `json:"suspect"`
 	Error      *string    `json:"error"`
+}
+
+type vapidKeyJSON struct {
+	Key string `json:"key"`
+}
+
+type subscriptionInJSON struct {
+	Endpoint string `json:"endpoint"`
+	Keys     struct {
+		P256dh string `json:"p256dh"`
+		Auth   string `json:"auth"`
+	} `json:"keys"`
+}
+
+type deviceJSON struct {
+	ID        int64      `json:"id"`
+	Endpoint  string     `json:"endpoint"`
+	UserAgent string     `json:"userAgent"`
+	CreatedAt time.Time  `json:"createdAt"`
+	LastOKAt  *time.Time `json:"lastOkAt"`
+}
+
+func toDevice(s store.Subscription) deviceJSON {
+	return deviceJSON{ID: s.ID, Endpoint: s.Endpoint, UserAgent: s.UserAgent, CreatedAt: s.CreatedAt, LastOKAt: s.LastOKAt}
+}
+
+type testPushJSON struct {
+	Sent   int `json:"sent"`
+	Failed int `json:"failed"`
+}
+
+// preferencesJSON mirrors store.Preferences field for field, so the two
+// convert directly.
+type preferencesJSON struct {
+	Divisions          []string `json:"divisions"`
+	NotifyNew          bool     `json:"notifyNew"`
+	NotifyEdit         bool     `json:"notifyEdit"`
+	NotifyRemoved      bool     `json:"notifyRemoved"`
+	SignupsOnly        bool     `json:"signupsOnly"`
+	SignupsAnyDivision bool     `json:"signupsAnyDivision"`
+	MinEditWords       int      `json:"minEditWords"`
 }

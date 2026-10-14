@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/httprate"
 
 	"github.com/farrellm/bbb/internal/auth"
+	"github.com/farrellm/bbb/internal/notify"
 	"github.com/farrellm/bbb/internal/store"
 )
 
@@ -29,6 +30,9 @@ type API struct {
 	// Google is nil when sign-in is not configured; the auth routes then
 	// answer 503.
 	Google SignInProvider
+	// Notifier sends test pushes. When it is nil or has no sender, the
+	// push routes that need keys answer 503.
+	Notifier *notify.Notifier
 	// PublicURL is the app's origin, for invite links.
 	PublicURL string
 	// AdminEmails are lowercased.
@@ -64,6 +68,7 @@ func (a *API) Routes() http.Handler {
 		r.Use(middleware.NoCache)
 
 		r.Get("/healthz", a.health)
+		r.Get("/push/vapid-public-key", a.vapidKey)
 
 		r.Route("/auth", func(r chi.Router) {
 			// These are reachable from the public internet without a
@@ -90,6 +95,17 @@ func (a *API) Routes() http.Handler {
 			r.Get("/items/{panelID}/versions/{versionID}", a.getVersion)
 			r.Get("/events", a.listEvents)
 			r.Post("/events/read", a.markRead)
+			r.Get("/preferences", a.getPreferences)
+			r.Put("/preferences", a.putPreferences)
+
+			r.Route("/push", func(r chi.Router) {
+				r.Post("/subscribe", a.subscribe)
+				r.Delete("/subscribe", a.unsubscribe)
+				r.Get("/devices", a.listDevices)
+				r.Delete("/devices/{id}", a.deleteDevice)
+				// Each test pushes to every device the user has.
+				r.With(limitByClient(10)).Post("/test", a.testPush)
+			})
 
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(requireAdmin)
@@ -134,5 +150,10 @@ func (a *API) status(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, "Could not load status", err)
 		return
 	}
-	writeJSON(w, http.StatusOK, statusJSON{CheckedAt: st.CheckedAt, OKAt: st.OKAt, Failing: st.Failing})
+	unread, err := a.Store.UnreadCount(r.Context(), currentUser(r).ID)
+	if err != nil {
+		internalError(w, r, "Could not load status", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, statusJSON{CheckedAt: st.CheckedAt, OKAt: st.OKAt, Failing: st.Failing, Unread: unread})
 }

@@ -234,6 +234,105 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/preferences": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["getPreferences"];
+    put: operations["putPreferences"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/push/vapid-public-key": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The applicationServerKey browsers subscribe with. */
+    get: operations["vapidPublicKey"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/push/subscribe": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Save this device's subscription. An endpoint already saved (say, for whoever signed in on the device before) moves to this user. */
+    post: operations["subscribe"];
+    delete: operations["unsubscribe"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/push/devices": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listDevices"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/push/devices/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete: operations["deleteDevice"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/push/test": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Push a test notification to each of the user's devices. */
+    post: operations["testPush"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/admin/invites": {
     parameters: {
       query?: never;
@@ -298,6 +397,8 @@ export interface components {
       okAt: string | null;
       /** @description The last poll failed or looked wrong. */
       failing: boolean;
+      /** @description Events the user hasn't read, for the app badge. */
+      unread: number;
     };
     Event: {
       /** Format: int64 */
@@ -421,6 +522,53 @@ export interface components {
       itemCount: number | null;
       suspect: boolean;
       error: string | null;
+    };
+    Preferences: {
+      /** @description Divisions whose items notify. */
+      divisions: components["schemas"]["Division"][];
+      notifyNew: boolean;
+      notifyEdit: boolean;
+      notifyRemoved: boolean;
+      /** @description Only signup items notify. */
+      signupsOnly: boolean;
+      /** @description Signup items notify whatever their division. */
+      signupsAnyDivision: boolean;
+      /** @description The smallest edit, in words added plus removed, that notifies. An edit that adds a signup link always does. */
+      minEditWords: number;
+    };
+    /** @description What PushSubscription.toJSON() gives, less expirationTime. */
+    SubscriptionIn: {
+      /** @description An https URL on a known push service. */
+      endpoint: string;
+      keys: {
+        p256dh: string;
+        auth: string;
+      };
+    };
+    Device: {
+      /** Format: int64 */
+      id: number;
+      endpoint: string;
+      /** @description The browser that subscribed, to name the device. */
+      userAgent: string;
+      /** Format: date-time */
+      createdAt: string;
+      /**
+       * Format: date-time
+       * @description When a push to it last succeeded.
+       */
+      lastOkAt: string | null;
+    };
+    /** @description Not an API response: the JSON inside each push, which the service worker shows. Here so its type is shared. */
+    PushPayload: {
+      title: string;
+      body: string;
+      /** @description The app path a tap opens. */
+      url: string;
+      /** @description A later notification with the same tag replaces this one. */
+      tag: string;
+      /** @description The user's unread count, for the app icon. */
+      badge: number;
     };
   };
   responses: {
@@ -780,6 +928,198 @@ export interface operations {
       };
       400: components["responses"]["Error"];
       401: components["responses"]["Error"];
+    };
+  };
+  getPreferences: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Preferences"];
+        };
+      };
+      401: components["responses"]["Error"];
+    };
+  };
+  putPreferences: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Preferences"];
+      };
+    };
+    responses: {
+      /** @description Saved; divisions come back in page order. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Preferences"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+    };
+  };
+  vapidPublicKey: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            /** @description Base64url, uncompressed P-256 point. */
+            key: string;
+          };
+        };
+      };
+      503: components["responses"]["Error"];
+    };
+  };
+  subscribe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubscriptionIn"];
+      };
+    };
+    responses: {
+      /** @description Saved. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Device"];
+        };
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+    };
+  };
+  unsubscribe: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          endpoint: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Removed, or never saved. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["Error"];
+      401: components["responses"]["Error"];
+    };
+  };
+  listDevices: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Oldest first. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Device"][];
+        };
+      };
+      401: components["responses"]["Error"];
+    };
+  };
+  deleteDevice: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: number;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Removed. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["Error"];
+      404: components["responses"]["Error"];
+    };
+  };
+  testPush: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description How many devices accepted it. Devices the push service says are gone are removed. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            sent: number;
+            failed: number;
+          };
+        };
+      };
+      401: components["responses"]["Error"];
+      429: components["responses"]["Error"];
+      503: components["responses"]["Error"];
     };
   };
   createInvite: {

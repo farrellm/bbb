@@ -5,7 +5,7 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["vite/client"],
+    "types": ["vite/client", "vite-plugin-pwa/vanillajs"],
     "jsx": "react-jsx",
     "noEmit": true,
     "skipLibCheck": true,
@@ -21,7 +21,7 @@
     "noUnusedParameters": true
   },
   "include": ["src"],
-  "exclude": ["src/lib/wordDiff.ts"],
+  "exclude": ["src/lib/wordDiff.ts", "src/sw.ts"],
   "references": [
     {
       "path": "./tsconfig.worddiff.json"

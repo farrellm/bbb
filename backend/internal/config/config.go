@@ -48,6 +48,13 @@ type Config struct {
 	// AdminEmails become admins when they sign in, and can create their
 	// account without an invite. Lowercased.
 	AdminEmails []string
+
+	// VAPID keys sign Web Push requests (generate with -gen-vapid). Without
+	// them push is off. VAPIDSubject is how push services can reach the
+	// sender: a mailto: or https: URL.
+	VAPIDPublic  string
+	VAPIDPrivate string
+	VAPIDSubject string
 }
 
 // devSessionSecret is the local-dev default. Load refuses it when PublicURL
@@ -57,6 +64,11 @@ const devSessionSecret = "bbb-local-development-session-secret" //nolint:gosec /
 // SecureCookies reports whether cookies need the Secure flag.
 func (c Config) SecureCookies() bool {
 	return strings.HasPrefix(c.PublicURL, "https://")
+}
+
+// PushConfigured reports whether Web Push has keys.
+func (c Config) PushConfigured() bool {
+	return c.VAPIDPublic != "" && c.VAPIDPrivate != ""
 }
 
 // GoogleConfigured reports whether Google sign-in has credentials.
@@ -92,8 +104,27 @@ func Load() (Config, error) {
 
 	// The User-Agent says who is polling and how to reach them.
 	cfg.UserAgent = "BBBWatch/1.0"
-	if contact := os.Getenv("CONTACT_EMAIL"); contact != "" {
+	contact := os.Getenv("CONTACT_EMAIL")
+	if contact != "" {
 		cfg.UserAgent += " (+" + contact + ")"
+	}
+
+	cfg.VAPIDPublic = os.Getenv("VAPID_PUBLIC")
+	cfg.VAPIDPrivate = os.Getenv("VAPID_PRIVATE")
+	if (cfg.VAPIDPublic == "") != (cfg.VAPIDPrivate == "") {
+		return cfg, errors.New("set both VAPID_PUBLIC and VAPID_PRIVATE, or neither")
+	}
+	cfg.VAPIDSubject = os.Getenv("VAPID_SUBJECT")
+	if cfg.VAPIDSubject == "" && contact != "" {
+		cfg.VAPIDSubject = "mailto:" + contact
+	}
+	if cfg.VAPIDSubject == "" {
+		cfg.VAPIDSubject = cfg.PublicURL
+	}
+	// Apple refuses pushes whose subject isn't one of these.
+	if cfg.PushConfigured() && !strings.HasPrefix(cfg.VAPIDSubject, "mailto:") &&
+		!strings.HasPrefix(cfg.VAPIDSubject, "https://") {
+		return cfg, errors.New("VAPID_SUBJECT (or CONTACT_EMAIL) must give a mailto: or https: URL")
 	}
 
 	var err error

@@ -33,6 +33,9 @@ type Scraper struct {
 	NightInterval time.Duration // 0 disables the overnight back-off
 	Log           *slog.Logger
 	Now           func() time.Time
+	// OnEvents, if set, is called after a run that recorded events, once
+	// they are committed.
+	OnEvents func()
 }
 
 // Outcome summarizes one run for logging and tests.
@@ -133,6 +136,9 @@ func (s *Scraper) Run(ctx context.Context) {
 			failures = 0
 			s.Log.Info("scraped", "run", out.RunID, "unchanged", out.Unchanged,
 				"baseline", out.Baseline, "items", out.Items, "events", out.Events)
+			if out.Events > 0 && s.OnEvents != nil {
+				s.OnEvents()
+			}
 		}
 
 		select {

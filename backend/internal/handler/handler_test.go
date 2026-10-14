@@ -18,6 +18,8 @@ import (
 	"github.com/farrellm/bbb/internal/auth/authtest"
 	"github.com/farrellm/bbb/internal/bbb"
 	"github.com/farrellm/bbb/internal/dbtest"
+	"github.com/farrellm/bbb/internal/notify"
+	"github.com/farrellm/bbb/internal/notify/notifytest"
 	"github.com/farrellm/bbb/internal/store"
 )
 
@@ -33,17 +35,26 @@ type env struct {
 	srv   *httptest.Server
 	store *store.Store
 	idp   *authtest.Provider
+	push  *notifytest.Service
 }
 
 func setup(t *testing.T) *env {
 	t.Helper()
 	pool := dbtest.New(t)
-	e := &env{t: t, store: store.New(pool), idp: authtest.New(t)}
+	e := &env{t: t, store: store.New(pool), idp: authtest.New(t), push: notifytest.New(t)}
 	var h http.Handler
 	e.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h.ServeHTTP(w, r)
 	}))
 	t.Cleanup(e.srv.Close)
+
+	pub, priv, err := notify.GenerateKeys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	notifier := notify.New(e.store, &notify.Sender{
+		PublicKey: pub, PrivateKey: priv, Subject: "mailto:test@example.org", Client: e.push.Client(),
+	}, slog.New(slog.DiscardHandler))
 
 	secret := strings.Repeat("s", 32)
 	api := &API{
@@ -54,6 +65,7 @@ func setup(t *testing.T) *env {
 		PublicURL:   "https://bbb.example",
 		AdminEmails: []string{"admin@example.org"},
 		PageURL:     pageURL,
+		Notifier:    notifier,
 	}
 	h = api.Routes()
 	return e
@@ -286,7 +298,10 @@ func TestHandoff(t *testing.T) {
 
 func TestNeedsSession(t *testing.T) {
 	e := setup(t)
-	for _, p := range []string{"/api/me", "/api/items", "/api/events", "/api/status", "/api/items/1"} {
+	for _, p := range []string{
+		"/api/me", "/api/items", "/api/events", "/api/status", "/api/items/1",
+		"/api/preferences", "/api/push/devices",
+	} {
 		e.getJSON(e.browser(), p, http.StatusUnauthorized, nil)
 	}
 	e.getJSON(e.browser(), "/api/nope", http.StatusNotFound, nil)

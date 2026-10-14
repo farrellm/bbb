@@ -1,6 +1,6 @@
 # BBB Watch: design
 
-Status: draft, 2026-10-14. Milestones 1 (scraper core) and 2 (read-only web app) are implemented; the rest is design only.
+Status: draft, 2026-10-14. Milestones 1 (scraper core), 2 (read-only web app) and 3 (push) are implemented; the rest is design only.
 
 ## Context
 
@@ -417,6 +417,18 @@ Where the build differs from, or pins down, the design above:
 - Handler tests validate every response against `openapi.yaml` (kin-openapi), so the spec can't drift from the server either.
 - A handoff sign-in forces Google's account chooser (`prompt=select_account`). A handoff gives the session to whoever created the nonce, so this keeps a stray link from signing someone in silently.
 - Admins can make invite links from Settings, as well as with `-create-invite`.
+
+## Implementation notes (milestone 3)
+
+- The notifier's queue is the `events` table: `events.notified_at` (migration 2) is stamped once an event is handled. The poller kicks the notifier after a run with events, and it also sweeps every minute, so events written by `-scrape-once` still go out. Migration 2 stamps all earlier events so turning push on doesn't announce old news; without VAPID keys events are stamped and nothing is sent, for the same reason.
+- Keys: `VAPID_PUBLIC` and `VAPID_PRIVATE`, from `server -gen-vapid`. `VAPID_SUBJECT` defaults to `mailto:$CONTACT_EMAIL`; the server refuses to start with push on and a subject that isn't `mailto:` or `https:`, since Apple rejects those.
+- Subscription endpoints must be https on a known push service (Apple, FCM, Mozilla, Windows), because the server POSTs to them. An endpoint already saved moves to whoever subscribes it, so a shared device follows the person signed in. Signing out turns off the device's notifications first.
+- Batching is per run: more than 3 matching events from one run become one summary. Moves never notify; an edit that adds a signup link notifies whatever its size. Each push sets a `Topic` equal to its tag, so the push service also collapses undelivered ones.
+- Retries: 429, 5xx and network errors are tried up to 4 times with doubling back-off (honouring `Retry-After`, capped at a minute); every attempt is a `deliveries` row. A test push is tried once so the button answers promptly; it records only `last_ok_at`.
+- Each payload carries the user's unread count (`badge`), which the worker sets as the app badge; `/status` returns it too, and the app sets the badge on launch and return. Quiet hours are not implemented yet (milestone 4).
+- Every account has a preferences row: created with the account, backfilled by migration 2, and created on first read for an account an older server made.
+- The service worker (`src/sw.ts`, built by vite-plugin-pwa `injectManifest`) precaches the shell, serves `index.html` for navigations except `/api/`, and takes over at once (`autoUpdate`). It also runs under `make frontend` so push can be tried on localhost. `public/manifest.webmanifest` stays hand-written.
+- Tests use `notify/notifytest`, a fake push service that decrypts what it receives (RFC 8291), so they check the notification text a phone would show.
 
 ## Implementation notes (deploy)
 

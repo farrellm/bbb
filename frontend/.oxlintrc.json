@@ -97,6 +97,14 @@
   },
   "overrides": [
     {
+      "files": ["src/sw.ts"],
+      "env": { "serviceworker": true, "browser": false },
+      "rules": {
+        // workbox-build replaces this name with the precache list.
+        "no-underscore-dangle": ["error", { "allow": ["__WB_MANIFEST"] }]
+      }
+    },
+    {
       "files": ["src/**/*.test.ts"],
       "rules": {
         "vitest/no-conditional-tests": "error",

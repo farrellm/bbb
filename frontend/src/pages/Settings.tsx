@@ -1,8 +1,11 @@
 import { Alert, Avatar, Box, Button, Link, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { api, data, type Invite } from "../api/client";
 import { useAuth } from "../auth/useAuth";
+import NotificationSettings from "../components/NotificationSettings";
+import PreferencesForm from "../components/PreferencesForm";
+import Section from "../components/Section";
 import { shortDate } from "../lib/time";
 
 export default function Settings() {
@@ -41,6 +44,9 @@ export default function Settings() {
         </Button>
       </Section>
 
+      <NotificationSettings />
+      <PreferencesForm />
+
       {user.isAdmin && <InviteSection />}
 
       <Section title="About">
@@ -56,20 +62,6 @@ export default function Settings() {
         </Typography>
       </Section>
     </>
-  );
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <Box
-      component="section"
-      sx={{ py: 2.5, borderTop: 1, borderColor: "divider" }}
-    >
-      <Typography variant="h2" sx={{ mb: 1.5 }}>
-        {title}
-      </Typography>
-      {children}
-    </Box>
   );
 }
 

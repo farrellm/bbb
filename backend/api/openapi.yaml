@@ -3,8 +3,8 @@ info:
   title: BBB Watch API
   version: "1"
   description: >
-    The JSON API under /api. Everything except the auth routes and the
-    health check needs a session cookie. The frontend's types are generated
+    The JSON API under /api. Everything except the auth routes, the VAPID
+    key and the health check needs a session cookie. The frontend's types are generated
     from this file (frontend/src/api/schema.d.ts); the Go shapes live in
     backend/internal/handler/types.go. Change them together.
 servers:
@@ -241,6 +241,135 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "401": { $ref: "#/components/responses/Error" }
 
+  /preferences:
+    get:
+      operationId: getPreferences
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preferences" }
+        "401": { $ref: "#/components/responses/Error" }
+    put:
+      operationId: putPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Preferences" }
+      responses:
+        "200":
+          description: Saved; divisions come back in page order.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Preferences" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /push/vapid-public-key:
+    get:
+      operationId: vapidPublicKey
+      summary: The applicationServerKey browsers subscribe with.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [key]
+                properties:
+                  key:
+                    description: Base64url, uncompressed P-256 point.
+                    type: string
+        "503": { $ref: "#/components/responses/Error" }
+
+  /push/subscribe:
+    post:
+      operationId: subscribe
+      summary: >
+        Save this device's subscription. An endpoint already saved (say, for
+        whoever signed in on the device before) moves to this user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubscriptionIn" }
+      responses:
+        "201":
+          description: Saved.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Device" }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: unsubscribe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              additionalProperties: false
+              properties:
+                endpoint: { type: string }
+      responses:
+        "204": { description: "Removed, or never saved." }
+        "400": { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /push/devices:
+    get:
+      operationId: listDevices
+      responses:
+        "200":
+          description: Oldest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Device" }
+        "401": { $ref: "#/components/responses/Error" }
+
+  /push/devices/{id}:
+    delete:
+      operationId: deleteDevice
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: integer, format: int64 },
+          }
+      responses:
+        "204": { description: Removed. }
+        "401": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /push/test:
+    post:
+      operationId: testPush
+      summary: Push a test notification to each of the user's devices.
+      responses:
+        "200":
+          description: >
+            How many devices accepted it. Devices the push service says are
+            gone are removed.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent, failed]
+                properties:
+                  sent: { type: integer }
+                  failed: { type: integer }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+
   /admin/invites:
     post:
       operationId: createInvite
@@ -326,7 +455,7 @@ components:
 
     Status:
       type: object
-      required: [checkedAt, okAt, failing]
+      required: [checkedAt, okAt, failing, unread]
       properties:
         checkedAt:
           description: When the last poll finished, whatever its outcome.
@@ -339,6 +468,9 @@ components:
         failing:
           description: The last poll failed or looked wrong.
           type: boolean
+        unread:
+          description: Events the user hasn't read, for the app badge.
+          type: integer
 
     Event:
       type: object
@@ -534,3 +666,90 @@ components:
         itemCount: { type: [integer, "null"] }
         suspect: { type: boolean }
         error: { type: [string, "null"] }
+
+    Preferences:
+      type: object
+      required:
+        [
+          divisions,
+          notifyNew,
+          notifyEdit,
+          notifyRemoved,
+          signupsOnly,
+          signupsAnyDivision,
+          minEditWords,
+        ]
+      additionalProperties: false
+      properties:
+        divisions:
+          description: Divisions whose items notify.
+          type: array
+          items: { $ref: "#/components/schemas/Division" }
+        notifyNew: { type: boolean }
+        notifyEdit: { type: boolean }
+        notifyRemoved: { type: boolean }
+        signupsOnly:
+          description: Only signup items notify.
+          type: boolean
+        signupsAnyDivision:
+          description: Signup items notify whatever their division.
+          type: boolean
+        minEditWords:
+          description: >
+            The smallest edit, in words added plus removed, that notifies.
+            An edit that adds a signup link always does.
+          type: integer
+          minimum: 0
+          maximum: 1000
+
+    SubscriptionIn:
+      description: What PushSubscription.toJSON() gives, less expirationTime.
+      type: object
+      required: [endpoint, keys]
+      additionalProperties: false
+      properties:
+        endpoint:
+          description: An https URL on a known push service.
+          type: string
+          maxLength: 2048
+        keys:
+          type: object
+          required: [p256dh, auth]
+          additionalProperties: false
+          properties:
+            p256dh: { type: string }
+            auth: { type: string }
+
+    Device:
+      type: object
+      required: [id, endpoint, userAgent, createdAt, lastOkAt]
+      properties:
+        id: { type: integer, format: int64 }
+        endpoint: { type: string }
+        userAgent:
+          description: The browser that subscribed, to name the device.
+          type: string
+        createdAt: { type: string, format: date-time }
+        lastOkAt:
+          description: When a push to it last succeeded.
+          type: [string, "null"]
+          format: date-time
+
+    PushPayload:
+      description: >
+        Not an API response: the JSON inside each push, which the service
+        worker shows. Here so its type is shared.
+      type: object
+      required: [title, body, url, tag, badge]
+      properties:
+        title: { type: string }
+        body: { type: string }
+        url:
+          description: The app path a tap opens.
+          type: string
+        tag:
+          description: A later notification with the same tag replaces this one.
+          type: string
+        badge:
+          description: The user's unread count, for the app icon.
+          type: integer

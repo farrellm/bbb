@@ -1,8 +1,10 @@
 import HistoryIcon from "@mui/icons-material/History";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { Alert, Box, IconButton, Link, Typography } from "@mui/material";
+import { useEffect } from "react";
 import { Outlet, Link as RouterLink } from "react-router";
 import { api, data } from "../api/client";
+import { setBadge } from "../lib/push";
 import { ago, clock } from "../lib/time";
 import { useLoad } from "../lib/useLoad";
 import { useNow, useOnReturn } from "../lib/useNow";
@@ -17,6 +19,10 @@ export default function Layout() {
   const status = useLoad("status", () => data(api.GET("/status")));
   useOnReturn(status.reload);
   const st = status.data;
+  const unread = st?.unread;
+  useEffect(() => {
+    if (unread !== undefined) setBadge(unread);
+  }, [unread]);
 
   return (
     <Page>

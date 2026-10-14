@@ -23,6 +23,7 @@ import (
 	"github.com/farrellm/bbb/internal/config"
 	"github.com/farrellm/bbb/internal/db"
 	"github.com/farrellm/bbb/internal/handler"
+	"github.com/farrellm/bbb/internal/notify"
 	"github.com/farrellm/bbb/internal/scraper"
 	"github.com/farrellm/bbb/internal/store"
 )
@@ -37,6 +38,7 @@ var (
 	listUsers    = flag.Bool("list-users", false, "list accounts and exit")
 	deleteUser   = flag.String("delete-user", "", "delete the account with this email and exit")
 	makeAdmin    = flag.String("make-admin", "", "make the account with this email an admin and exit")
+	genVAPID     = flag.Bool("gen-vapid", false, "print a new VAPID key pair for VAPID_PUBLIC and VAPID_PRIVATE, then exit")
 )
 
 func main() {
@@ -50,6 +52,15 @@ func main() {
 func run(ctx context.Context) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	if *genVAPID {
+		pub, priv, err := notify.GenerateKeys()
+		if err != nil {
+			return err
+		}
+		fmt.Printf("export VAPID_PUBLIC=%s\nexport VAPID_PRIVATE=%s\n", pub, priv)
+		return nil
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -68,6 +79,12 @@ func run(ctx context.Context) error {
 	}
 
 	log := slog.Default()
+	var sender *notify.Sender
+	if cfg.PushConfigured() {
+		sender = &notify.Sender{PublicKey: cfg.VAPIDPublic, PrivateKey: cfg.VAPIDPrivate, Subject: cfg.VAPIDSubject}
+	}
+	notifier := notify.New(st, sender, log)
+
 	sc := &scraper.Scraper{
 		Fetcher:       bbb.NewFetcher(cfg.BBBURL, cfg.UserAgent),
 		Store:         st,
@@ -76,6 +93,7 @@ func run(ctx context.Context) error {
 		Interval:      cfg.PollInterval,
 		NightInterval: cfg.NightPollInterval,
 		Log:           log,
+		OnEvents:      notifier.Kick,
 	}
 
 	if *once {
@@ -96,12 +114,16 @@ func run(ctx context.Context) error {
 		AdminEmails: cfg.AdminEmails,
 		PageURL:     cfg.BBBURL,
 		WebDir:      cfg.WebDir,
+		Notifier:    notifier,
 	}
 	if cfg.GoogleConfigured() {
 		api.Google = auth.NewGoogle(ctx, auth.GoogleProvider, cfg.GoogleClientID, cfg.GoogleClientSecret,
 			cfg.PublicURL+"/api/auth/google/callback")
 	} else {
 		log.Warn("GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set; sign-in is disabled")
+	}
+	if !notifier.Enabled() {
+		log.Warn("VAPID_PUBLIC or VAPID_PRIVATE not set; push notifications are off")
 	}
 	srv := &http.Server{
 		Addr:              cfg.ListenAddr,
@@ -125,6 +147,10 @@ func run(ctx context.Context) error {
 		shutdown, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 		return srv.Shutdown(shutdown) //nolint:contextcheck // shutdown must outlive the cancelled ctx
+	})
+	g.Go(func() error {
+		notifier.Run(ctx)
+		return nil
 	})
 	if !*noPoll {
 		g.Go(func() error {

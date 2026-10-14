@@ -103,11 +103,19 @@ func createUser(ctx context.Context, tx pgx.Tx, in SignIn) (User, error) {
 			return User{}, fmt.Errorf("use invite: %w", err)
 		}
 	}
-	return scanUser(tx.QueryRow(ctx, `
+	u, err := scanUser(tx.QueryRow(ctx, `
 		INSERT INTO users (google_sub, email, name, picture_url, is_admin, last_login_at)
 		VALUES ($1, $2, $3, $4, $5, now())
 		RETURNING `+userCols,
 		in.Subject, in.Email, in.Name, in.Picture, in.Admin))
+	if err != nil {
+		return u, err
+	}
+	// Every account has a preferences row, starting from the defaults.
+	if _, err := tx.Exec(ctx, `INSERT INTO preferences (user_id) VALUES ($1)`, u.ID); err != nil {
+		return u, fmt.Errorf("create preferences: %w", err)
+	}
+	return u, nil
 }
 
 // ListUsers returns every account, oldest first.

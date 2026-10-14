@@ -14,6 +14,8 @@ export type Division = Schemas["Division"];
 export type EventKind = Schemas["EventKind"];
 export type SignupLink = Schemas["SignupLink"];
 export type Invite = Schemas["Invite"];
+export type Preferences = Schemas["Preferences"];
+export type Device = Schemas["Device"];
 
 class ApiError extends Error {
   readonly status: number;
@@ -41,6 +43,20 @@ export async function data<T>(
     );
   }
   return body;
+}
+
+// ok waits for a call answered with no body (a 204), throwing an ApiError
+// with the server's message if it failed.
+export async function ok(
+  call: Promise<{ error?: { error: string } | undefined; response: Response }>,
+): Promise<void> {
+  const { error, response } = await call;
+  if (!response.ok) {
+    throw new ApiError(
+      response.status,
+      error?.error ?? `${response.status} ${response.statusText}`,
+    );
+  }
 }
 
 // markRead records events as read. Failures are only logged: the worst
