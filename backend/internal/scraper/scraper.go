@@ -18,8 +18,8 @@ import (
 const (
 	jitter     = 30 * time.Second
 	maxBackoff = time.Hour
-	// suspectAlertAfter is how many bad runs in a row get logged as an alert.
-	suspectAlertAfter = 3
+	// alertAfter is how many bad runs in a row alert the admins.
+	alertAfter = 3
 )
 
 // Scraper polls the page and records what changed.
@@ -36,6 +36,13 @@ type Scraper struct {
 	// OnEvents, if set, is called after a run that recorded events, once
 	// they are committed.
 	OnEvents func()
+	// OnStuck, if set, is called once when runs in a row have failed or
+	// been suspect, and OnRecovered at the next good run after that.
+	OnStuck     func(ctx context.Context, runs int)
+	OnRecovered func(ctx context.Context)
+
+	// alerted is true from OnStuck until OnRecovered.
+	alerted bool
 }
 
 // Outcome summarizes one run for logging and tests.
@@ -125,14 +132,13 @@ func (s *Scraper) Run(ctx context.Context) {
 	failures := 0
 	for {
 		out, err := s.RunOnce(ctx)
-		switch {
-		case ctx.Err() != nil:
+		if ctx.Err() != nil {
 			return
-		case err != nil:
+		}
+		if err != nil {
 			failures++
 			s.Log.Warn("scrape failed", "err", err, "run", out.RunID, "failures", failures)
-			s.alertIfStuck(ctx)
-		default:
+		} else {
 			failures = 0
 			s.Log.Info("scraped", "run", out.RunID, "unchanged", out.Unchanged,
 				"baseline", out.Baseline, "items", out.Items, "events", out.Events)
@@ -140,6 +146,7 @@ func (s *Scraper) Run(ctx context.Context) {
 				s.OnEvents()
 			}
 		}
+		s.checkStuck(ctx, err == nil)
 
 		select {
 		case <-ctx.Done():
@@ -149,16 +156,35 @@ func (s *Scraper) Run(ctx context.Context) {
 	}
 }
 
-// alertIfStuck logs an error once several runs in a row have failed. The
-// admin push for this arrives with notifications.
-func (s *Scraper) alertIfStuck(ctx context.Context) {
+// checkStuck alerts once the stored runs show alertAfter bad ones in a
+// row, and gives the all-clear at the next good run. The streak comes from
+// the database, so a restart mid-outage doesn't reset it (though it does
+// alert again).
+func (s *Scraper) checkStuck(ctx context.Context, ok bool) {
+	if ok {
+		if s.alerted {
+			s.alerted = false
+			s.Log.Info("scraper recovered")
+			if s.OnRecovered != nil {
+				s.OnRecovered(ctx)
+			}
+		}
+		return
+	}
+	if s.alerted {
+		return
+	}
 	n, err := s.Store.SuspectStreak(ctx)
 	if err != nil {
 		s.Log.Warn("suspect streak", "err", err)
 		return
 	}
-	if n == suspectAlertAfter {
+	if n >= alertAfter {
+		s.alerted = true
 		s.Log.Error("scraper has failed repeatedly; check the page structure", "runs", n)
+		if s.OnStuck != nil {
+			s.OnStuck(ctx, n)
+		}
 	}
 }
 

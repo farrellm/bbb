@@ -1,12 +1,24 @@
-import { Alert, Avatar, Box, Button, Link, Typography } from "@mui/material";
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Link,
+  List,
+  ListItem,
+  ListItemText,
+  Typography,
+} from "@mui/material";
 import { Link as RouterLink } from "react-router";
 import { useState } from "react";
-import { api, data, type Invite } from "../api/client";
+import { api, data, type Invite, type ScrapeRun } from "../api/client";
 import { useAuth } from "../auth/useAuth";
 import NotificationSettings from "../components/NotificationSettings";
 import PreferencesForm from "../components/PreferencesForm";
 import Section from "../components/Section";
-import { shortDate } from "../lib/time";
+import { shortDate, stamp } from "../lib/time";
+import { useLoad } from "../lib/useLoad";
+import { useNow } from "../lib/useNow";
 
 export default function Settings() {
   const { user, signOut } = useAuth();
@@ -48,6 +60,7 @@ export default function Settings() {
       <PreferencesForm />
 
       {user.isAdmin && <InviteSection />}
+      {user.isAdmin && <ChecksSection />}
 
       <Section title="About">
         <Typography>
@@ -122,6 +135,55 @@ function InviteSection() {
             <Button onClick={() => void create()}>Make another</Button>
           </Box>
         </>
+      )}
+    </Section>
+  );
+}
+
+// runOutcome says how one check of the page went.
+function runOutcome(r: ScrapeRun): string {
+  if (r.error !== null) return r.error;
+  if (r.unchanged) return "Unchanged";
+  return r.itemCount === null ? "Read the page" : `Read ${r.itemCount} items`;
+}
+
+// ChecksSection shows admins the latest checks of the page, so an alert
+// that BBB Watch can't read it says why.
+function ChecksSection() {
+  const runs = useLoad("scrape-runs", () =>
+    data(api.GET("/admin/scrape-runs", { params: { query: { limit: 12 } } })),
+  );
+  const now = useNow();
+  return (
+    <Section title="Recent checks">
+      {runs.error !== undefined && (
+        <Alert severity="error" variant="outlined">
+          {runs.error.message}
+        </Alert>
+      )}
+      {runs.data !== undefined && runs.data.length === 0 && (
+        <Typography>The page hasn't been checked yet.</Typography>
+      )}
+      {runs.data !== undefined && runs.data.length > 0 && (
+        <List dense disablePadding>
+          {runs.data.map((r) => {
+            const bad = r.error !== null || r.suspect;
+            return (
+              <ListItem key={r.id} disableGutters>
+                <ListItemText
+                  primary={runOutcome(r)}
+                  secondary={stamp(new Date(r.startedAt), now)}
+                  slotProps={{
+                    primary: {
+                      color: bad ? "struck.main" : undefined,
+                      sx: { overflowWrap: "anywhere" },
+                    },
+                  }}
+                />
+              </ListItem>
+            );
+          })}
+        </List>
       )}
     </Section>
   );

@@ -15,7 +15,8 @@ func TestPreferences(t *testing.T) {
 	var p preferencesJSON
 	e.getJSON(c, "/api/preferences", http.StatusOK, &p)
 	if strings.Join(p.Divisions, ",") != "all,lower,middle,upper" || !p.NotifyNew || !p.NotifyEdit ||
-		p.NotifyRemoved || p.SignupsOnly || p.SignupsAnyDivision || p.MinEditWords != 1 {
+		p.NotifyRemoved || p.SignupsOnly || p.SignupsAnyDivision || p.MinEditWords != 1 ||
+		p.QuietStart != nil || p.QuietEnd != nil {
 		t.Errorf("defaults = %+v", p)
 	}
 
@@ -31,11 +32,24 @@ func TestPreferences(t *testing.T) {
 		t.Errorf("reloaded = %+v", again)
 	}
 
+	quiet := `{"divisions": [], "notifyNew": true, "notifyEdit": true, "notifyRemoved": false,
+		"signupsOnly": false, "signupsAnyDivision": false, "minEditWords": 1,
+		"quietStart": "21:30", "quietEnd": "07:00"}`
+	decode(t, e.do(c, http.MethodPut, "/api/preferences", quiet), http.StatusOK, &p)
+	e.getJSON(c, "/api/preferences", http.StatusOK, &again)
+	if again.QuietStart == nil || *again.QuietStart != "21:30" || again.QuietEnd == nil || *again.QuietEnd != "07:00" {
+		t.Errorf("quiet hours = %v, %v", again.QuietStart, again.QuietEnd)
+	}
+
 	for _, bad := range []string{
 		`{"divisions": ["nope"], "minEditWords": 1}`,
 		`{"divisions": [], "minEditWords": -1}`,
 		`{"minEditWords": 1}`,
 		`{"divisions": [], "extra": 1}`,
+		`{"divisions": [], "quietStart": "21:30"}`,
+		`{"divisions": [], "quietStart": "21:30", "quietEnd": "21:30"}`,
+		`{"divisions": [], "quietStart": "9:30", "quietEnd": "07:00"}`,
+		`{"divisions": [], "quietStart": "24:00", "quietEnd": "07:00"}`,
 	} {
 		decode(t, e.do(c, http.MethodPut, "/api/preferences", bad), http.StatusBadRequest, nil)
 	}

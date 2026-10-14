@@ -233,3 +233,94 @@ func TestTest(t *testing.T) {
 		t.Errorf("%d subscriptions left, want 1", len(subs))
 	}
 }
+
+func TestQuietHours(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+	clock := time.Date(2026, time.October, 14, 22, 0, 0, 0, time.UTC)
+	f.n.Location = time.UTC
+	f.n.Now = func() time.Time { return clock }
+
+	night := f.user("night", func(p *store.Preferences) {
+		start, end := "21:30", "07:00"
+		p.QuietStart, p.QuietEnd = &start, &end
+	})
+	nightPhone := f.device(night)
+	dayPhone := f.device(f.user("day", nil))
+
+	// Three edits in three runs during quiet hours: only the parent
+	// without quiet hours hears, one push each.
+	for _, d := range []bbb.Division{bbb.DivisionUpper, bbb.DivisionLower, bbb.DivisionMiddle} {
+		f.edit(d, 1)
+		f.record()
+		got := f.flush()
+		if len(got) != 1 || got[0].Endpoint != dayPhone.Endpoint {
+			t.Fatalf("quiet-hours pushes = %+v", got)
+		}
+	}
+	clock = time.Date(2026, time.October, 15, 6, 59, 0, 0, time.UTC)
+	if got := f.flush(); len(got) != 0 {
+		t.Fatalf("pushed %d before quiet hours ended", len(got))
+	}
+
+	// When they end, what was held arrives as one summary, once.
+	clock = clock.Add(time.Minute)
+	got := f.flush()
+	if len(got) != 1 || got[0].Endpoint != nightPhone.Endpoint {
+		t.Fatalf("release pushes = %+v", got)
+	}
+	if p := got[0].Payload; p.Title != "3 BBB updates" || p.Body != "3 edited" || p.URL != "/" || p.Badge != 3 {
+		t.Errorf("release = %+v", p)
+	}
+	if got := f.flush(); len(got) != 0 {
+		t.Errorf("released twice: %+v", got)
+	}
+
+	// Held events read in the app meanwhile are left out: of two, the
+	// one left arrives as itself.
+	clock = time.Date(2026, time.October, 15, 23, 0, 0, 0, time.UTC)
+	f.edit(bbb.DivisionUpper, 1)
+	f.record()
+	f.page.Items[0].Subheader = "Deadline: Monday, November 2"
+	f.record()
+	f.flush()
+	var upper int64
+	if err := f.pool.QueryRow(ctx, `
+		SELECT e.id FROM events e JOIN items i USING (panel_id)
+		WHERE i.division = 'upper' ORDER BY e.id DESC LIMIT 1`).Scan(&upper); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.st.MarkRead(ctx, night, []int64{upper}); err != nil {
+		t.Fatal(err)
+	}
+	clock = clock.Add(8 * time.Hour)
+	got = f.flush()
+	if len(got) != 1 || got[0].Endpoint != nightPhone.Endpoint || got[0].Payload.Title != "Edited in All School" {
+		t.Fatalf("release after read = %+v", got)
+	}
+	var held int
+	if err := f.pool.QueryRow(ctx, `SELECT count(*) FROM held_events`).Scan(&held); err != nil || held != 0 {
+		t.Errorf("held_events left: %d, %v", held, err)
+	}
+}
+
+func TestAlert(t *testing.T) {
+	f := setup(t)
+	admin := f.device(f.user("admin", nil)) // the fixture's users are admins
+	ctx := context.Background()
+	if _, err := f.st.CreateInvite(ctx, "code", 0, 1, nil); err != nil {
+		t.Fatal(err)
+	}
+	parent, err := f.st.SignInUser(ctx, store.SignIn{Subject: "p", Email: "p@example.org", Invite: "code"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.device(parent.ID)
+
+	f.n.Alert(ctx, notify.ScraperStuck(3))
+	got := f.push.Pushes()
+	if len(got) != 1 || got[0].Endpoint != admin.Endpoint || got[0].Payload.Tag != "scraper" ||
+		got[0].Payload.Title != "BBB Watch can't read the page" {
+		t.Errorf("alert pushes = %+v", got)
+	}
+}

@@ -16,6 +16,7 @@ export type SignupLink = Schemas["SignupLink"];
 export type Invite = Schemas["Invite"];
 export type Preferences = Schemas["Preferences"];
 export type Device = Schemas["Device"];
+export type ScrapeRun = Schemas["ScrapeRun"];
 
 class ApiError extends Error {
   readonly status: number;

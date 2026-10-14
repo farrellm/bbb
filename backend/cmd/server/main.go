@@ -84,6 +84,7 @@ func run(ctx context.Context) error {
 		sender = &notify.Sender{PublicKey: cfg.VAPIDPublic, PrivateKey: cfg.VAPIDPrivate, Subject: cfg.VAPIDSubject}
 	}
 	notifier := notify.New(st, sender, log)
+	notifier.Location = cfg.SchoolTZ
 
 	sc := &scraper.Scraper{
 		Fetcher:       bbb.NewFetcher(cfg.BBBURL, cfg.UserAgent),
@@ -94,6 +95,12 @@ func run(ctx context.Context) error {
 		NightInterval: cfg.NightPollInterval,
 		Log:           log,
 		OnEvents:      notifier.Kick,
+		OnStuck: func(ctx context.Context, runs int) {
+			notifier.Alert(ctx, notify.ScraperStuck(runs))
+		},
+		OnRecovered: func(ctx context.Context) {
+			notifier.Alert(ctx, notify.ScraperRecovered())
+		},
 	}
 
 	if *once {

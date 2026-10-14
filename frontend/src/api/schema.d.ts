@@ -535,6 +535,10 @@ export interface components {
       signupsAnyDivision: boolean;
       /** @description The smallest edit, in words added plus removed, that notifies. An edit that adds a signup link always does. */
       minEditWords: number;
+      /** @description Start of quiet hours, "HH:MM" in the school's time zone; null when there are none. Set with quietEnd, which must differ. Notifications due in quiet hours are held, then sent as one when they end. */
+      quietStart: string | null;
+      /** @description End of quiet hours; may be earlier than quietStart to cross midnight. */
+      quietEnd: string | null;
     };
     /** @description What PushSubscription.toJSON() gives, less expirationTime. */
     SubscriptionIn: {

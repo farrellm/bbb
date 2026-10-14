@@ -181,4 +181,6 @@ type preferencesJSON struct {
 	SignupsOnly        bool     `json:"signupsOnly"`
 	SignupsAnyDivision bool     `json:"signupsAnyDivision"`
 	MinEditWords       int      `json:"minEditWords"`
+	QuietStart         *string  `json:"quietStart"`
+	QuietEnd           *string  `json:"quietEnd"`
 }

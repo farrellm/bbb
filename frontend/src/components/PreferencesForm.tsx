@@ -1,5 +1,6 @@
 import {
   Alert,
+  Box,
   Checkbox,
   FormControl,
   FormControlLabel,
@@ -22,6 +23,9 @@ const editSizes = [
   { words: 10, label: "10 words or more" },
   { words: 25, label: "25 words or more" },
 ];
+
+// Quiet hours a parent turning them on starts from.
+const defaultQuiet = { start: "21:30", end: "07:00" };
 
 // PreferencesForm is what notifies the user. Every change saves at once.
 export default function PreferencesForm() {
@@ -177,6 +181,85 @@ export default function PreferencesForm() {
           Includes sign-ups in divisions you haven't picked above.
         </FormHelperText>
       </FormControl>
+
+      <QuietHours
+        // Remount on a reload, so the fields show what was saved.
+        key={`${loaded.data?.quietStart}-${loaded.data?.quietEnd}`}
+        start={prefs.quietStart}
+        end={prefs.quietEnd}
+        onChange={(start, end) =>
+          save({ ...prefs, quietStart: start, quietEnd: end })
+        }
+      />
     </Section>
+  );
+}
+
+// QuietHours turns quiet hours on and off and sets them. The time fields
+// keep their own text while a time is half typed, and save once both are
+// whole and different.
+function QuietHours({
+  start,
+  end,
+  onChange,
+}: {
+  start: string | null;
+  end: string | null;
+  onChange: (start: string | null, end: string | null) => void;
+}) {
+  const [from, setFrom] = useState(start ?? defaultQuiet.start);
+  const [to, setTo] = useState(end ?? defaultQuiet.end);
+  const on = start !== null && end !== null;
+  const whole = /^\d\d:\d\d$/;
+
+  const edit = (nextFrom: string, nextTo: string) => {
+    setFrom(nextFrom);
+    setTo(nextTo);
+    if (whole.test(nextFrom) && whole.test(nextTo) && nextFrom !== nextTo)
+      onChange(nextFrom, nextTo);
+  };
+
+  return (
+    <FormControl component="fieldset" sx={{ display: "block", mt: 2.5 }}>
+      <FormLabel component="legend">Quiet hours</FormLabel>
+      <FormControlLabel
+        label="Hold notifications at set times"
+        control={
+          <Switch
+            checked={on}
+            onChange={(e) =>
+              e.target.checked && from !== to
+                ? onChange(from, to)
+                : onChange(null, null)
+            }
+          />
+        }
+      />
+      {on && (
+        <Box sx={{ display: "flex", gap: 1.5, mt: 1, flexWrap: "wrap" }}>
+          <TextField
+            type="time"
+            label="From"
+            value={from}
+            onChange={(e) => edit(e.target.value, to)}
+            error={from === to}
+            sx={{ width: 150 }}
+          />
+          <TextField
+            type="time"
+            label="Until"
+            value={to}
+            onChange={(e) => edit(from, e.target.value)}
+            error={from === to}
+            sx={{ width: 150 }}
+          />
+        </Box>
+      )}
+      <FormHelperText>
+        {from === to && on
+          ? "Pick a different start and end."
+          : "Anything posted in these hours arrives as one notification when they end. Times are the school's (Eastern)."}
+      </FormHelperText>
+    </FormControl>
   );
 }

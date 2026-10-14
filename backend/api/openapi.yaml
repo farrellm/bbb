@@ -678,6 +678,8 @@ components:
           signupsOnly,
           signupsAnyDivision,
           minEditWords,
+          quietStart,
+          quietEnd,
         ]
       additionalProperties: false
       properties:
@@ -701,6 +703,18 @@ components:
           type: integer
           minimum: 0
           maximum: 1000
+        quietStart:
+          description: >
+            Start of quiet hours, "HH:MM" in the school's time zone; null
+            when there are none. Set with quietEnd, which must differ.
+            Notifications due in quiet hours are held, then sent as one
+            when they end.
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        quietEnd:
+          description: End of quiet hours; may be earlier than quietStart to cross midnight.
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
 
     SubscriptionIn:
       description: What PushSubscription.toJSON() gives, less expirationTime.

@@ -1,6 +1,6 @@
 # BBB Watch: design
 
-Status: draft, 2026-10-14. Milestones 1 (scraper core), 2 (read-only web app) and 3 (push) are implemented; the rest is design only.
+Status: 2026-10-14. All four milestones are implemented: 1 (scraper core), 2 (read-only web app), 3 (push) and 4 (hardening).
 
 ## Context
 
@@ -425,10 +425,18 @@ Where the build differs from, or pins down, the design above:
 - Subscription endpoints must be https on a known push service (Apple, FCM, Mozilla, Windows), because the server POSTs to them. An endpoint already saved moves to whoever subscribes it, so a shared device follows the person signed in. Signing out turns off the device's notifications first.
 - Batching is per run: more than 3 matching events from one run become one summary. Moves never notify; an edit that adds a signup link notifies whatever its size. Each push sets a `Topic` equal to its tag, so the push service also collapses undelivered ones.
 - Retries: 429, 5xx and network errors are tried up to 4 times with doubling back-off (honouring `Retry-After`, capped at a minute); every attempt is a `deliveries` row. A test push is tried once so the button answers promptly; it records only `last_ok_at`.
-- Each payload carries the user's unread count (`badge`), which the worker sets as the app badge; `/status` returns it too, and the app sets the badge on launch and return. Quiet hours are not implemented yet (milestone 4).
+- Each payload carries the user's unread count (`badge`), which the worker sets as the app badge; `/status` returns it too, and the app sets the badge on launch and return.
 - Every account has a preferences row: created with the account, backfilled by migration 2, and created on first read for an account an older server made.
 - The service worker (`src/sw.ts`, built by vite-plugin-pwa `injectManifest`) precaches the shell, serves `index.html` for navigations except `/api/`, and takes over at once (`autoUpdate`). It also runs under `make frontend` so push can be tried on localhost. `public/manifest.webmanifest` stays hand-written.
 - Tests use `notify/notifytest`, a fake push service that decrypts what it receives (RFC 8291), so they check the notification text a phone would show.
+
+## Implementation notes (milestone 4)
+
+- **Admin alert:** when the stored runs show 3 failed or suspect runs in a row (counted from the last good run, so a restart doesn't reset the streak), every admin device gets "BBB Watch can't read the page", which opens Settings. The next good run sends "BBB Watch is reading the page again" with the same tag, replacing it. Alerts ignore quiet hours, since they are rare and need action. Fetch errors count as well as suspect pages, since either way nothing is being announced.
+- Settings shows admins the last 12 checks ("Recent checks"), with failures in Struck, so an alert says why.
+- **Quiet hours** are `"HH:MM"` in `SCHOOL_TZ`, may cross midnight, and are both set or both null (a check constraint, migration 3). A matching event for a user in quiet hours goes into `held_events` instead of being pushed; the first sweep after the hours end sends the held events as one push (the event itself if only one is left, otherwise a summary), re-checked against the current preferences. Events read in the app meanwhile are dropped, as are held events of a user with no devices left.
+- Settings: a "Quiet hours" switch (default 9:30pm to 7:00am) with From and Until time fields, saved once both are whole and differ.
+- The install guide (iOS, not yet on the Home Screen) is the one in Settings from milestone 3; the deploy unit and Funnel are under "Implementation notes (deploy)".
 
 ## Implementation notes (deploy)
 

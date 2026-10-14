@@ -30,13 +30,27 @@ type Notifier struct {
 	Log    *slog.Logger
 	// Backoff is the first retry delay, doubling after each attempt.
 	Backoff time.Duration
+	// Location is the school's time zone, which quiet hours are in.
+	Location *time.Location
+	// Now is the clock; nil means time.Now.
+	Now func() time.Time
 
 	kick chan struct{}
 }
 
 // New returns a Notifier; sender may be nil.
 func New(st *store.Store, sender *Sender, log *slog.Logger) *Notifier {
-	return &Notifier{Store: st, Sender: sender, Log: log, Backoff: 2 * time.Second, kick: make(chan struct{}, 1)}
+	return &Notifier{
+		Store: st, Sender: sender, Log: log, Backoff: 2 * time.Second, Location: time.Local,
+		kick: make(chan struct{}, 1),
+	}
+}
+
+func (n *Notifier) now() time.Time {
+	if n.Now != nil {
+		return n.Now().In(n.Location)
+	}
+	return time.Now().In(n.Location)
 }
 
 // Enabled reports whether pushes can be sent.
@@ -71,37 +85,82 @@ func (n *Notifier) Run(ctx context.Context) {
 }
 
 // Flush pushes every pending event to every matching user's devices, then
-// stamps the events. Failures to individual devices are logged and
-// recorded in deliveries; they don't hold the events back.
+// stamps the events. A user in quiet hours has theirs held instead, and
+// the first Flush after their quiet hours end sends what was held as one
+// push. Failures to individual devices are logged and recorded in
+// deliveries; they don't hold the events back.
 func (n *Notifier) Flush(ctx context.Context) error {
 	evs, err := n.Store.PendingEvents(ctx)
-	if err != nil || len(evs) == 0 {
+	if err != nil {
 		return err
 	}
+	held, err := n.Store.HeldEvents(ctx)
+	if err != nil {
+		return err
+	}
+	if len(evs) == 0 && len(held) == 0 {
+		return nil
+	}
+
+	var stillQuiet []int64
 	if n.Sender != nil {
 		recipients, err := n.Store.Recipients(ctx)
 		if err != nil {
 			return err
 		}
+		now := n.now()
 		for _, r := range recipients {
-			n.notifyUser(ctx, r, evs)
+			mine := matching(r.Prefs, evs)
+			if quiet(r.Prefs, now) {
+				stillQuiet = append(stillQuiet, r.UserID)
+				if len(mine) > 0 {
+					if err := n.Store.HoldEvents(ctx, r.UserID, ids(mine)); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			n.notifyUser(ctx, r, matching(r.Prefs, held[r.UserID]), mine)
 		}
 	}
-	ids := make([]int64, len(evs))
-	for i, e := range evs {
-		ids[i] = e.ID
+	if len(evs) > 0 {
+		if err := n.Store.MarkNotified(ctx, ids(evs)); err != nil {
+			return err
+		}
 	}
-	return n.Store.MarkNotified(ctx, ids)
+	if len(held) > 0 {
+		return n.Store.ReleaseHeld(ctx, stillQuiet)
+	}
+	return nil
 }
 
-func (n *Notifier) notifyUser(ctx context.Context, r store.Recipient, evs []store.PendingEvent) {
-	var mine []store.PendingEvent
+// matching returns the events these preferences notify about.
+func matching(p store.Preferences, evs []store.PendingEvent) []store.PendingEvent {
+	var out []store.PendingEvent
 	for _, e := range evs {
-		if Matches(r.Prefs, e) {
-			mine = append(mine, e)
+		if Matches(p, e) {
+			out = append(out, e)
 		}
 	}
-	if len(mine) == 0 {
+	return out
+}
+
+func ids(evs []store.PendingEvent) []int64 {
+	out := make([]int64, len(evs))
+	for i, e := range evs {
+		out[i] = e.ID
+	}
+	return out
+}
+
+// notifyUser pushes to one user's devices: first what was held during
+// their quiet hours, as one push, then the new events.
+func (n *Notifier) notifyUser(ctx context.Context, r store.Recipient, held, mine []store.PendingEvent) {
+	msgs := plan(mine)
+	if len(held) > 0 {
+		msgs = append([]message{released(held)}, msgs...)
+	}
+	if len(msgs) == 0 {
 		return
 	}
 	badge, err := n.Store.UnreadCount(ctx, r.UserID)
@@ -109,7 +168,7 @@ func (n *Notifier) notifyUser(ctx context.Context, r store.Recipient, evs []stor
 		n.Log.Warn("unread count", "err", err, "user", r.UserID)
 	}
 	deadSubs := map[int64]bool{}
-	for _, m := range plan(mine) {
+	for _, m := range msgs {
 		m.payload.Badge = badge
 		for _, sub := range r.Subs {
 			if !deadSubs[sub.ID] && n.deliver(ctx, sub, m.payload, m.events, maxAttempts) == gone {
@@ -117,7 +176,8 @@ func (n *Notifier) notifyUser(ctx context.Context, r store.Recipient, evs []stor
 			}
 		}
 	}
-	n.Log.Info("notified", "user", r.UserID, "events", len(mine), "devices", len(r.Subs)-len(deadSubs))
+	n.Log.Info("notified", "user", r.UserID, "events", len(mine), "held", len(held),
+		"devices", len(r.Subs)-len(deadSubs))
 }
 
 // deliver pushes p to one device, retrying 429s, 5xx and network errors
@@ -164,6 +224,28 @@ func (n *Notifier) deliver(ctx context.Context, sub store.Subscription, p Payloa
 		case <-time.After(wait):
 		}
 	}
+}
+
+// Alert pushes p to every admin's devices, e.g. when the poller keeps
+// failing. Alerts are rare and need action, so they ignore quiet hours.
+func (n *Notifier) Alert(ctx context.Context, p Payload) {
+	if n.Sender == nil {
+		return
+	}
+	subs, err := n.Store.AdminSubscriptions(ctx)
+	if err != nil {
+		n.Log.Warn("alert", "err", err)
+		return
+	}
+	for _, sub := range subs {
+		// The worker sets the app badge from every push, so each carries
+		// its own user's count.
+		if p.Badge, err = n.Store.UnreadCount(ctx, sub.UserID); err != nil {
+			n.Log.Warn("unread count", "err", err, "user", sub.UserID)
+		}
+		n.deliver(ctx, sub, p, nil, maxAttempts)
+	}
+	n.Log.Info("alerted admins", "title", p.Title, "devices", len(subs))
 }
 
 // TestResult counts the outcome of a test push.

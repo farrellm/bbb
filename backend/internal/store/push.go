@@ -24,15 +24,28 @@ type Preferences struct {
 	// MinEditWords is the smallest edit, in words added plus removed, that
 	// notifies.
 	MinEditWords int
+	// QuietStart and QuietEnd ("21:30") bound the user's quiet hours in the
+	// school's time zone; both are nil when there are none. Pushes due
+	// inside them are held, then sent as one.
+	QuietStart *string
+	QuietEnd   *string
 }
 
-const prefCols = `divisions, notify_new, notify_edit, notify_removed,
-	signups_only, signups_any_division, min_edit_words`
+// prefCols reads a preferences row (or prefColsRaw's columns); quiet hours
+// come back as "15:04".
+const (
+	prefColsRaw = `divisions, notify_new, notify_edit, notify_removed,
+	signups_only, signups_any_division, min_edit_words, quiet_start, quiet_end`
+	prefCols = `divisions, notify_new, notify_edit, notify_removed,
+	signups_only, signups_any_division, min_edit_words,
+	to_char(quiet_start, 'HH24:MI'), to_char(quiet_end, 'HH24:MI')`
+)
 
 func (p *Preferences) dest() []any {
 	return []any{
 		&p.Divisions, &p.NotifyNew, &p.NotifyEdit, &p.NotifyRemoved,
 		&p.SignupsOnly, &p.SignupsAnyDivision, &p.MinEditWords,
+		&p.QuietStart, &p.QuietEnd,
 	}
 }
 
@@ -46,7 +59,7 @@ func (s *Store) GetPreferences(ctx context.Context, userID int64) (Preferences, 
 			INSERT INTO preferences (user_id)
 			SELECT id FROM users WHERE id = $1
 			ON CONFLICT DO NOTHING
-			RETURNING `+prefCols+`
+			RETURNING `+prefColsRaw+`
 		)
 		SELECT `+prefCols+` FROM made
 		UNION ALL
@@ -68,8 +81,9 @@ func (s *Store) SetPreferences(ctx context.Context, userID int64, p Preferences)
 		divs = []string{}
 	}
 	_, err := s.pool.Exec(ctx, `
-		INSERT INTO preferences (user_id, `+prefCols+`)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO preferences (user_id, divisions, notify_new, notify_edit, notify_removed,
+			signups_only, signups_any_division, min_edit_words, quiet_start, quiet_end)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::time, $10::time)
 		ON CONFLICT (user_id) DO UPDATE SET
 			divisions = excluded.divisions,
 			notify_new = excluded.notify_new,
@@ -77,9 +91,11 @@ func (s *Store) SetPreferences(ctx context.Context, userID int64, p Preferences)
 			notify_removed = excluded.notify_removed,
 			signups_only = excluded.signups_only,
 			signups_any_division = excluded.signups_any_division,
-			min_edit_words = excluded.min_edit_words`,
+			min_edit_words = excluded.min_edit_words,
+			quiet_start = excluded.quiet_start,
+			quiet_end = excluded.quiet_end`,
 		userID, divs, p.NotifyNew, p.NotifyEdit, p.NotifyRemoved,
-		p.SignupsOnly, p.SignupsAnyDivision, p.MinEditWords)
+		p.SignupsOnly, p.SignupsAnyDivision, p.MinEditWords, p.QuietStart, p.QuietEnd)
 	if err != nil {
 		return fmt.Errorf("set preferences: %w", err)
 	}
@@ -230,16 +246,21 @@ type PendingEvent struct {
 	Deadline      *time.Time
 }
 
+// pendingCols and pendingFrom select PendingEvents.
+const (
+	pendingCols = `e.id, e.run_id, e.panel_id, e.kind, e.from_version_id, e.to_version_id,
+		e.became_signup, e.words_added, e.words_removed,
+		i.division, v.title, i.is_signup, i.deadline`
+	pendingFrom = `
+		FROM events e
+		JOIN items i ON i.panel_id = e.panel_id
+		JOIN item_versions v ON v.id = coalesce(e.to_version_id, e.from_version_id)`
+)
+
 // PendingEvents returns the events not yet stamped notified, oldest first.
 // Only committed runs' events are visible, so a run is never half-sent.
 func (s *Store) PendingEvents(ctx context.Context) ([]PendingEvent, error) {
-	rows, err := s.pool.Query(ctx, `
-		SELECT e.id, e.run_id, e.panel_id, e.kind, e.from_version_id, e.to_version_id,
-			e.became_signup, e.words_added, e.words_removed,
-			i.division, v.title, i.is_signup, i.deadline
-		FROM events e
-		JOIN items i ON i.panel_id = e.panel_id
-		JOIN item_versions v ON v.id = coalesce(e.to_version_id, e.from_version_id)
+	rows, err := s.pool.Query(ctx, `SELECT `+pendingCols+pendingFrom+`
 		WHERE e.notified_at IS NULL
 		ORDER BY e.id`)
 	if err != nil {
@@ -259,6 +280,77 @@ func (s *Store) MarkNotified(ctx context.Context, eventIDs []int64) error {
 		return fmt.Errorf("mark notified: %w", err)
 	}
 	return nil
+}
+
+// HoldEvents keeps events for a user in quiet hours, to send when they end.
+func (s *Store) HoldEvents(ctx context.Context, userID int64, eventIDs []int64) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO held_events (user_id, event_id)
+		SELECT $1, id FROM unnest($2::bigint[]) AS id
+		ON CONFLICT DO NOTHING`, userID, eventIDs)
+	if err != nil {
+		return fmt.Errorf("hold events: %w", err)
+	}
+	return nil
+}
+
+// HeldEvents returns each user's held events, oldest first, leaving out
+// any the user has since read in the app.
+func (s *Store) HeldEvents(ctx context.Context) (map[int64][]PendingEvent, error) {
+	rows, err := s.pool.Query(ctx, `SELECT h.user_id, `+pendingCols+pendingFrom+`
+		JOIN held_events h ON h.event_id = e.id
+		LEFT JOIN reads r ON r.user_id = h.user_id AND r.event_id = e.id
+		WHERE r.event_id IS NULL
+		ORDER BY h.user_id, e.id`)
+	if err != nil {
+		return nil, fmt.Errorf("held events: %w", err)
+	}
+	defer rows.Close()
+
+	out := map[int64][]PendingEvent{}
+	for rows.Next() {
+		var userID int64
+		var e PendingEvent
+		if err := rows.Scan(&userID, &e.ID, &e.RunID, &e.PanelID, &e.Kind, &e.FromVersionID,
+			&e.ToVersionID, &e.BecameSignup, &e.WordsAdded, &e.WordsRemoved, &e.Division,
+			&e.Title, &e.IsSignup, &e.Deadline); err != nil {
+			return nil, fmt.Errorf("held events: %w", err)
+		}
+		out[userID] = append(out[userID], e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("held events: %w", err)
+	}
+	return out, nil
+}
+
+// ReleaseHeld forgets the events held for everyone except the users in
+// keep: once they are sent, read already, or have no device to go to.
+func (s *Store) ReleaseHeld(ctx context.Context, keep []int64) error {
+	if keep == nil {
+		keep = []int64{}
+	}
+	if _, err := s.pool.Exec(ctx, `DELETE FROM held_events WHERE user_id <> ALL($1)`, keep); err != nil {
+		return fmt.Errorf("release held: %w", err)
+	}
+	return nil
+}
+
+// AdminSubscriptions returns every admin's devices, for alerts about the
+// poller.
+func (s *Store) AdminSubscriptions(ctx context.Context) ([]Subscription, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT `+subCols+` FROM push_subscriptions
+		WHERE user_id IN (SELECT id FROM users WHERE is_admin)
+		ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("admin subscriptions: %w", err)
+	}
+	subs, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Subscription])
+	if err != nil {
+		return nil, fmt.Errorf("admin subscriptions: %w", err)
+	}
+	return subs, nil
 }
 
 // Delivery statuses.

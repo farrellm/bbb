@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"slices"
+	"time"
 
 	"github.com/farrellm/bbb/internal/notify"
 	"github.com/farrellm/bbb/internal/store"
@@ -140,6 +141,19 @@ func (a *API) getPreferences(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, preferencesJSON(p))
 }
 
+// validQuietHours checks that quiet hours are both unset, or both "15:04"
+// and different.
+func validQuietHours(p preferencesJSON) bool {
+	if p.QuietStart == nil || p.QuietEnd == nil {
+		return p.QuietStart == p.QuietEnd
+	}
+	// time.Parse takes "9:30" too; the spec says two digits.
+	start, err1 := time.Parse(notify.ClockLayout, *p.QuietStart)
+	end, err2 := time.Parse(notify.ClockLayout, *p.QuietEnd)
+	return err1 == nil && err2 == nil && !start.Equal(end) &&
+		len(*p.QuietStart) == len(notify.ClockLayout) && len(*p.QuietEnd) == len(notify.ClockLayout)
+}
+
 // putPreferences replaces the user's preferences and returns them as
 // saved.
 func (a *API) putPreferences(w http.ResponseWriter, r *http.Request) {
@@ -166,6 +180,10 @@ func (a *API) putPreferences(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	body.Divisions = divs
+	if !validQuietHours(body) {
+		writeError(w, http.StatusBadRequest, "Quiet hours need a different start and end, like 21:30")
+		return
+	}
 
 	p := store.Preferences(body)
 	if err := a.Store.SetPreferences(r.Context(), currentUser(r).ID, p); err != nil {

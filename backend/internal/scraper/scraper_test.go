@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -229,6 +230,34 @@ func TestRunOnceFailures(t *testing.T) {
 	}
 	if streak, _ := sc.Store.SuspectStreak(ctx); streak != 0 {
 		t.Errorf("streak after recovery = %d", streak)
+	}
+}
+
+func TestCheckStuck(t *testing.T) {
+	sc, site, _ := setup(t)
+	ctx := context.Background()
+	var calls []string
+	sc.OnStuck = func(_ context.Context, runs int) { calls = append(calls, "stuck "+strconv.Itoa(runs)) }
+	sc.OnRecovered = func(context.Context) { calls = append(calls, "recovered") }
+	poll := func() {
+		_, err := sc.RunOnce(ctx)
+		sc.checkStuck(ctx, err == nil)
+	}
+
+	site.set(http.StatusOK, sample(t))
+	poll()
+	// Four bad runs alert once, at the third.
+	site.set(http.StatusOK, "<html><body>Maintenance</body></html>")
+	poll()
+	poll()
+	site.set(http.StatusBadGateway, "")
+	poll()
+	poll()
+	site.set(http.StatusOK, sample(t))
+	poll()
+	poll()
+	if got := strings.Join(calls, ", "); got != "stuck 3, recovered" {
+		t.Errorf("calls = %s", got)
 	}
 }
 
