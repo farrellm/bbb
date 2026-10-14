@@ -1,5 +1,5 @@
 # BBB Watch as a systemd user unit, public through Tailscale Funnel on
-# https://<host>.<tailnet>.ts.net:10000. Install with `make install-service`
+# https://<host>.<tailnet>.ts.net. Install with `make install-service`
 # (which links this file, so edits here apply after a daemon-reload);
 # redeploy with `make deploy`. Paths assume the repo is at ~/workspace/bbb.
 #
@@ -8,7 +8,7 @@
 # ExecStartPre/ExecStart steps failing and Restart=always retrying.
 
 [Unit]
-Description=BBB Watch (poller, API and PWA; public via Tailscale Funnel on :10000)
+Description=BBB Watch (poller, API and PWA; public via Tailscale Funnel on :443)
 Documentation=file://%h/workspace/bbb/README.md
 StartLimitIntervalSec=0
 
@@ -27,8 +27,8 @@ ExecStart=%h/workspace/bbb/scripts/run-production
 # to fail: if Funnel isn't enabled for the tailnet the CLI blocks printing
 # an enrollment link, which would otherwise wedge the unit and then kill a
 # healthy server. Check `tailscale funnel status` if the app is unreachable.
-ExecStartPost=-/usr/bin/timeout 15 /usr/bin/tailscale funnel --bg --https=10000 http://127.0.0.1:8093
-ExecStopPost=-/usr/bin/timeout 15 /usr/bin/tailscale funnel --https=10000 off
+ExecStartPost=-/usr/bin/timeout 15 /usr/bin/tailscale funnel --bg --https=443 http://127.0.0.1:8093
+ExecStopPost=-/usr/bin/timeout 15 /usr/bin/tailscale funnel --https=443 off
 Restart=always
 RestartSec=10
 # The server shuts down within 10 s on SIGTERM.

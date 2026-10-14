@@ -31,7 +31,7 @@ Users are invited parents, not just one family, so the doc needs accounts and pe
 | DB | Postgres 17 via docker-compose, golang-migrate in `db/migrations/` | `docker-compose.yml`, Makefile targets (`db`, `migrate`, `backend`, `frontend`, `deploy`) |
 | Frontend | React, TypeScript, Vite, MUI, react-router, plus `vite-plugin-pwa` (Workbox) | `theme.ts` fonts and palette (`palette.struck`), `wordDiff.ts`, the diff rendering from `BlockAttributeDiffPage.tsx` |
 | Auth | **Sign in with Google** (OIDC via `golang.org/x/oauth2` and `coreos/go-oidc`), then a signed session cookie (gorilla/sessions) | `backend/internal/auth/session.go` (Save/UserID/Clear) and `handler/auth.go` (Logout, Me); session lifetime raised from 1 week to about 1 year (see iOS notes) |
-| Deploy | One Go process serves the SPA (`WEB_DIR`) and `/api` on 127.0.0.1:8093, run as a systemd user unit and exposed through **Tailscale Funnel on HTTPS port 10000** (`tailscale funnel --bg --https=10000 8093`) | nisaba's `deploy` target and unit file. Public URL: `https://<host>.<tailnet>.ts.net:10000/`, which is also the OAuth redirect origin |
+| Deploy | One Go process serves the SPA (`WEB_DIR`) and `/api` on 127.0.0.1:8093, run as a systemd user unit and exposed through **Tailscale Funnel on HTTPS port 443** (`tailscale funnel --bg --https=443 8093`) | nisaba's `deploy` target and unit file. Public URL: `https://<host>.<tailnet>.ts.net/`, which is also the OAuth redirect origin |
 
 ## Architecture
 
@@ -285,7 +285,7 @@ Only signup items get a different surface, so that difference itself carries mea
   - A valid Google account alone doesn't grant access: a new account needs an invite. Invites can be revoked and have a usage cap.
   - The Google Cloud OAuth client needs an "External" consent screen and only the `openid email profile` scopes, so Google verification isn't needed.
     It stays in "Testing" mode until it is published, and Testing mode limits sign-in to listed test users, so it has to be published to "In production".
-  - Env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PUBLIC_URL=https://<host>.<tailnet>.ts.net:10000`.
+  - Env vars: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PUBLIC_URL=https://<host>.<tailnet>.ts.net`.
 - The session cookie is HttpOnly, Secure and SameSite=Lax. Handoff nonces are 128-bit random values, single-use, with a 10-minute TTL. Auth endpoints are rate-limited.
 - `body_html` is sanitized with bluemonday before it is sent to the client. Links get `rel=noopener` and `target=_blank`.
 - Requests to the school site stay low (one every 5 minutes), carry an identifiable UA and back off on errors.
@@ -440,12 +440,12 @@ Where the build differs from, or pins down, the design above:
 
 ## Implementation notes (deploy)
 
-- `deploy/bbb.service` is committed and linked into the user manager by `make install-service`. Its `ExecStartPost` sets up the Funnel mapping (`tailscale funnel --bg --https=10000 http://127.0.0.1:8093`), and `ExecStopPost` removes it.
+- `deploy/bbb.service` is committed and linked into the user manager by `make install-service`. Its `ExecStartPost` sets up the Funnel mapping (`tailscale funnel --bg --https=443 http://127.0.0.1:8093`), and `ExecStopPost` removes it.
 - `scripts/run-production` derives `PUBLIC_URL` from `tailscale status`, so the public repo doesn't name the tailnet.
 - Development moved to `127.0.0.1:8094` so it doesn't collide with the deployed server on 8093.
 
 ## Decisions
-- **Hosting:** home server, Tailscale Funnel on port 10000.
+- **Hosting:** home server, Tailscale Funnel on port 443.
 - **Users:** invited parents.
 - **Auth:** Google sign-in, plus an invite code for new accounts.
 - **Signups outside chosen divisions:** these don't notify by default; there's a per-user toggle.

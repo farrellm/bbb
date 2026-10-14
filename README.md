@@ -53,7 +53,7 @@ cd backend && go run ./cmd/server -gen-vapid
 The deployed instance is a systemd user unit, `deploy/bbb.service`, running
 one process for the poller, the API and the built app on `127.0.0.1:8093`.
 The only way in is Tailscale Funnel, which publishes it at
-`https://<host>.<tailnet>.ts.net:10000/` (Funnel allows only ports 443, 8443
+`https://<host>.<tailnet>.ts.net/` (Funnel allows only ports 443, 8443
 and 10000).
 
 ```sh
@@ -72,7 +72,7 @@ tailscale funnel status
   the server stops. If Funnel isn't enabled for the tailnet, that step times
   out instead of blocking.
 - Starting at boot without a login needs `loginctl enable-linger $USER`.
-- Add `https://<host>.<tailnet>.ts.net:10000/api/auth/google/callback` to the
+- Add `https://<host>.<tailnet>.ts.net/api/auth/google/callback` to the
   Google OAuth client's redirect URIs.
 - The dev server listens on 8094, so `make backend` can run alongside the
   service. Both use the same database, though, so run the dev server with

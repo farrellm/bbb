@@ -18,7 +18,7 @@ fi
 host="$(tailscale status --json | jq -er '.Self.DNSName | rtrimstr(".")')"
 
 export LISTEN_ADDR=127.0.0.1:8093
-export PUBLIC_URL="https://$host:10000"
+export PUBLIC_URL="https://$host"
 export WEB_DIR="$repo/frontend/dist"
 
 exec "$repo/backend/bin/server"
