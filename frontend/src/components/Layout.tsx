@@ -35,7 +35,7 @@ export default function Layout() {
               underline="none"
               color="inherit"
             >
-              BBB Watch
+              Pingry BBB Watch
             </Link>
           </Typography>
           <IconButton

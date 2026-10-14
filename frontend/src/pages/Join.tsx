@@ -26,7 +26,7 @@ export default function Join() {
 
   return (
     <SignIn
-      intro="You've been invited to BBB Watch: what changed on the Big Blue Bulletin, and what to sign up for."
+      intro="You've been invited to Pingry BBB Watch: what changed on the Big Blue Bulletin, and what to sign up for."
       error={error}
       {...(invite !== null && { invite })}
       disabled={invite === null || check.data !== true}

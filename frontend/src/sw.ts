@@ -42,7 +42,7 @@ if (import.meta.env.PROD) {
 // iOS revokes the subscription of a worker that receives a push without
 // showing a notification, so even an unreadable push shows something.
 const fallback: PushPayload = {
-  title: "BBB Watch",
+  title: "Pingry BBB Watch",
   body: "Something changed on the Big Blue Bulletin.",
   url: "/",
   tag: "fallback",

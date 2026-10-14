@@ -1,6 +1,6 @@
 {
-  "name": "BBB Watch",
-  "short_name": "BBB Watch",
+  "name": "Pingry BBB Watch",
+  "short_name": "Pingry BBB",
   "description": "What changed on the Big Blue Bulletin, and what to sign up for. Unofficial.",
   "start_url": "/",
   "scope": "/",

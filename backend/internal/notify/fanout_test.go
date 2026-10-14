@@ -320,7 +320,7 @@ func TestAlert(t *testing.T) {
 	f.n.Alert(ctx, notify.ScraperStuck(3))
 	got := f.push.Pushes()
 	if len(got) != 1 || got[0].Endpoint != admin.Endpoint || got[0].Payload.Tag != "scraper" ||
-		got[0].Payload.Title != "BBB Watch can't read the page" {
+		got[0].Payload.Title != "Pingry BBB Watch can't read the page" {
 		t.Errorf("alert pushes = %+v", got)
 	}
 }

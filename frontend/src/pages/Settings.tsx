@@ -70,8 +70,8 @@ export default function Settings() {
           </Link>
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          BBB Watch checks the page every few minutes and keeps every version of
-          every item, so you can see what changed.
+          Pingry BBB Watch checks the page every few minutes and keeps every
+          version of every item, so you can see what changed.
         </Typography>
       </Section>
     </>
@@ -96,7 +96,9 @@ function InviteSection() {
   };
   const share = async (url: string) => {
     if (typeof navigator.share === "function") {
-      await navigator.share({ title: "BBB Watch", url }).catch(() => undefined);
+      await navigator
+        .share({ title: "Pingry BBB Watch", url })
+        .catch(() => undefined);
       return;
     }
     await navigator.clipboard.writeText(url);
@@ -148,7 +150,7 @@ function runOutcome(r: ScrapeRun): string {
 }
 
 // ChecksSection shows admins the latest checks of the page, so an alert
-// that BBB Watch can't read it says why.
+// that Pingry BBB Watch can't read it says why.
 function ChecksSection() {
   const runs = useLoad("scrape-runs", () =>
     data(api.GET("/admin/scrape-runs", { params: { query: { limit: 12 } } })),

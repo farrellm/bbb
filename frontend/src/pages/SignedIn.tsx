@@ -11,8 +11,8 @@ export default function SignedIn() {
         You're signed in
       </Typography>
       <Typography sx={{ mt: 2, mb: 4 }}>
-        Go back to the BBB Watch app on your Home Screen. It will pick up the
-        sign-in by itself.
+        Go back to the Pingry BBB Watch app on your Home Screen. It will pick up
+        the sign-in by itself.
       </Typography>
       <Button component={Link} to="/" variant="outlined">
         Continue here instead

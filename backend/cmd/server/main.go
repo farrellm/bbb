@@ -1,4 +1,4 @@
-// Command server runs BBB Watch: the poller and the HTTP API (plus the
+// Command server runs Pingry BBB Watch: the poller and the HTTP API (plus the
 // built frontend when WEB_DIR is set) in one process. A few flags instead
 // run a one-off admin task and exit.
 package main

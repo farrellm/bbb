@@ -1,4 +1,4 @@
-# BBB Watch: design
+# Pingry BBB Watch: design
 
 Status: 2026-10-14. All four milestones are implemented: 1 (scraper core), 2 (read-only web app), 3 (push) and 4 (hardening).
 
@@ -6,7 +6,7 @@ Status: 2026-10-14. All four milestones are implemented: 1 (scraper core), 2 (re
 
 Pingry posts parent announcements on the "Big Blue Bulletin" (BBB) page at
 https://www.pingry.org/experience/community-life/bbb. Items get added and quietly edited in place (a date changes, a signup link is added), and there is no feed or notification of any kind.
-BBB Watch polls the page, keeps every version of every item, tells **new** items apart from **edits**, and sends iPhone push notifications through an installable PWA. Each parent chooses which divisions notify them.
+Pingry BBB Watch polls the page, keeps every version of every item, tells **new** items apart from **edits**, and sends iPhone push notifications through an installable PWA. Each parent chooses which divisions notify them.
 Signup and RSVP items are highlighted so they're hard to miss.
 Users are invited parents, not just one family, so the doc needs accounts and per-user preferences.
 
@@ -221,7 +221,7 @@ Only signup items get a different surface, so that difference itself carries mea
 
 ```
 ┌──────────────────────────────────┐
-│ BBB Watch                   ⚙    │
+│ Pingry BBB Watch            ⚙    │
 │ Checked 4 min ago                │
 │ All  Lower  Middle  Upper  Sign-ups 3 │  ← segmented, scrolls sideways
 ├──────────────────────────────────┤
@@ -257,7 +257,7 @@ Only signup items get a different surface, so that difference itself carries mea
   - The header reads "Oct 9 → Oct 14" with prev/next version arrows and a word-count summary.
 - **Not used:** card grids, drop shadows, gradient washes, monospace data labels, all-caps eyebrows, "A · B" meta strings, "→" on buttons.
   External links get an icon, not a glyph.
-- **Identity:** the app is unofficial, so it has its own name ("BBB Watch") and a plain pushpin icon.
+- **Identity:** the app is unofficial, so it has its own name ("Pingry BBB Watch") and a plain pushpin icon.
   It uses no Pingry crest, logo or wordmark. The About screen says "Unofficial. Reads the public Big Blue Bulletin page."
 - **Quality floor:**
   - WCAG AA contrast for all text in both themes; the Flyer fills are checked against Ink.
@@ -269,9 +269,9 @@ Only signup items get a different surface, so that difference itself carries mea
 **Copy**
 - Empty division: "Nothing new in Lower School since Monday. You'll get a notification when something is posted."
 - Scrape failure banner: "Couldn't reach pingry.org at 8:05pm. Showing the page as of 7:55pm."
-- Install guide (iOS, not yet installed): "To get notifications, add BBB Watch to your Home Screen: tap Share, then Add to Home Screen. Then open it from there."
+- Install guide (iOS, not yet installed): "To get notifications, add Pingry BBB Watch to your Home Screen: tap Share, then Add to Home Screen. Then open it from there."
 - Push permission button: "Turn on notifications". Afterwards the toast reads "Notifications turned on for this iPhone".
-- Invite missing: "You need an invite link to join. Ask the parent who shared BBB Watch with you."
+- Invite missing: "You need an invite link to join. Ask the parent who shared Pingry BBB Watch with you."
 
 **Review against generic defaults.** These were revised before finalizing:
 - The first idea was a cork-board look with pins on every item. That was dropped as kitsch; the flyer treatment is kept for signups only, where it carries meaning.
@@ -432,7 +432,7 @@ Where the build differs from, or pins down, the design above:
 
 ## Implementation notes (milestone 4)
 
-- **Admin alert:** when the stored runs show 3 failed or suspect runs in a row (counted from the last good run, so a restart doesn't reset the streak), every admin device gets "BBB Watch can't read the page", which opens Settings. The next good run sends "BBB Watch is reading the page again" with the same tag, replacing it. Alerts ignore quiet hours, since they are rare and need action. Fetch errors count as well as suspect pages, since either way nothing is being announced.
+- **Admin alert:** when the stored runs show 3 failed or suspect runs in a row (counted from the last good run, so a restart doesn't reset the streak), every admin device gets "Pingry BBB Watch can't read the page", which opens Settings. The next good run sends "Pingry BBB Watch is reading the page again" with the same tag, replacing it. Alerts ignore quiet hours, since they are rare and need action. Fetch errors count as well as suspect pages, since either way nothing is being announced.
 - Settings shows admins the last 12 checks ("Recent checks"), with failures in Struck, so an alert says why.
 - **Quiet hours** are `"HH:MM"` in `SCHOOL_TZ`, may cross midnight, and are both set or both null (a check constraint, migration 3). A matching event for a user in quiet hours goes into `held_events` instead of being pushed; the first sweep after the hours end sends the held events as one push (the event itself if only one is left, otherwise a summary), re-checked against the current preferences. Events read in the app meanwhile are dropped, as are held events of a user with no devices left.
 - Settings: a "Quiet hours" switch (default 9:30pm to 7:00am) with From and Until time fields, saved once both are whole and differ.

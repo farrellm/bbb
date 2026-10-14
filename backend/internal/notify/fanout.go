@@ -268,7 +268,7 @@ func (n *Notifier) Test(ctx context.Context, userID int64) (TestResult, error) {
 	}
 	p := Payload{
 		Title: "Notifications are on",
-		Body:  "This is a test from BBB Watch. New and edited items will arrive like this.",
+		Body:  "This is a test from Pingry BBB Watch. New and edited items will arrive like this.",
 		URL:   "/settings",
 		Tag:   "test",
 		Badge: badge,

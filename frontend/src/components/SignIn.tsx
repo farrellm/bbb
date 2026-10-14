@@ -95,7 +95,7 @@ export default function SignIn({
   return (
     <Page>
       <Box component="header" sx={{ mt: 6, mb: 4 }}>
-        <Typography variant="h1">BBB Watch</Typography>
+        <Typography variant="h1">Pingry BBB Watch</Typography>
         <Typography color="text.secondary" sx={{ mt: 1 }}>
           {intro}
         </Typography>

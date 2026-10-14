@@ -113,14 +113,14 @@ export default function NotificationSettings() {
       {support === "needs-install" && <InstallGuide />}
       {support === "unsupported" && (
         <Typography>
-          This browser can't show notifications. On an iPhone, open BBB Watch
-          from your Home Screen.
+          This browser can't show notifications. On an iPhone, open Pingry BBB
+          Watch from your Home Screen.
         </Typography>
       )}
       {support === "supported" && permission === "denied" && (
         <Alert severity="info" variant="outlined" sx={{ mb: 1.5 }}>
           {isIOS()
-            ? "Notifications are blocked for BBB Watch. To allow them, open the Settings app, tap Notifications, then BBB Watch, and turn on Allow Notifications."
+            ? "Notifications are blocked for Pingry BBB Watch. To allow them, open the Settings app, tap Notifications, then Pingry BBB, and turn on Allow Notifications."
             : "Notifications are blocked for this site. Allow them in your browser's site settings, then come back."}
         </Alert>
       )}

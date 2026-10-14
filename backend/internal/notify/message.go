@@ -102,7 +102,7 @@ const scraperTag = "scraper"
 // ScraperStuck is the admin alert after runs bad polls in a row.
 func ScraperStuck(runs int) Payload {
 	return Payload{
-		Title: "BBB Watch can't read the page",
+		Title: "Pingry BBB Watch can't read the page",
 		Body: fmt.Sprintf("The last %d checks of pingry.org failed or looked wrong. "+
 			"Nothing will be announced until it reads the page again.", runs),
 		URL: "/settings",
@@ -113,7 +113,7 @@ func ScraperStuck(runs int) Payload {
 // ScraperRecovered is the admin all-clear after ScraperStuck.
 func ScraperRecovered() Payload {
 	return Payload{
-		Title: "BBB Watch is reading the page again",
+		Title: "Pingry BBB Watch is reading the page again",
 		Body:  "Checks of pingry.org are working again.",
 		URL:   "/",
 		Tag:   scraperTag,

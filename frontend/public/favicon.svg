@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- BBB Watch app icon: a plain pushpin on Ink. Source for public/*.png;
+  <!-- Pingry BBB Watch app icon: a plain pushpin on Ink. Source for public/*.png;
        regenerate with scripts/render-icons. -->
   <rect width="512" height="512" fill="#0B2A5B"/>
   <g transform="translate(-22 22) rotate(35 256 256) translate(0 -14)">

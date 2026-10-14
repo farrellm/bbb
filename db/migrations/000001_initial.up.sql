@@ -1,4 +1,4 @@
--- BBB Watch schema. See docs/DESIGN.md, "Data model".
+-- Pingry BBB Watch schema. See docs/DESIGN.md, "Data model".
 
 SET lock_timeout = '5s';
 SET statement_timeout = '30s';

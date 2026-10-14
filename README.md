@@ -1,4 +1,4 @@
-# BBB Watch
+# Pingry BBB Watch
 
 Watches Pingry's [Big Blue Bulletin](https://www.pingry.org/experience/community-life/bbb)
 page, keeps every version of every item, tells new items apart from edits,

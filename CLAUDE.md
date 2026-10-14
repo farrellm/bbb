@@ -1,4 +1,4 @@
-# BBB Watch
+# Pingry BBB Watch
 
 Design and milestones: `docs/DESIGN.md`. Go backend in `backend/`, React PWA
 in `frontend/`, migrations in `db/migrations/`, scripts in `scripts/`. The

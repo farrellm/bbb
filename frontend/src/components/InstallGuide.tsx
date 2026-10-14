@@ -7,7 +7,8 @@ export default function InstallGuide() {
   return (
     <Box>
       <Typography>
-        To get notifications, add BBB Watch to your Home Screen: tap Share{" "}
+        To get notifications, add Pingry BBB Watch to your Home Screen: tap
+        Share{" "}
         <IosShareIcon
           fontSize="small"
           titleAccess="(the Share icon)"
