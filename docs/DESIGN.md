@@ -1,6 +1,6 @@
 # BBB Watch: design
 
-Status: draft, 2026-10-14. Milestone 1 (scraper core) is implemented; the rest is design only.
+Status: draft, 2026-10-14. Milestones 1 (scraper core) and 2 (read-only web app) are implemented; the rest is design only.
 
 ## Context
 
@@ -403,6 +403,20 @@ bbb/
   - Run a local fixture server that serves an edited snapshot, with `BBB_URL` pointed at it.
   - Check that the event appears in the timeline and that the diff dialog renders.
   - On a real iPhone using the Funnel URL: Add to Home Screen, sign in with Google (the handoff flow), enable notifications, press "send test", then edit the fixture and confirm the push arrives and opens the diff.
+
+## Implementation notes (milestone 2)
+
+Where the build differs from, or pins down, the design above:
+
+- The feed's **All** tab shows every division, grouped under division headings; Lower, Middle and Upper show only that division.
+- The diff sheet's URL is `?item=<panelID>&diff=<from>..<to>`; the API needs the panel id to fetch versions.
+- Events from before a user's account existed count as read. The feed and timeline mark what they show as read after it has been on screen for 1.5 s, and keep showing the marks until the next load.
+- The font is self-hosted from `@fontsource/atkinson-hyperlegible-next` instead of loaded from Google Fonts, so the installed app works offline and makes no third-party requests.
+- `wordDiff.ts` is copied byte for byte and builds in its own TypeScript project (`tsconfig.worddiff.json`), since nisaba's code doesn't pass `noUncheckedIndexedAccess`. Its vitest cases match the Go port's tests.
+- `openapi-typescript` needs the TypeScript 5 compiler API, which TypeScript 7 lacks, so it is installed separately in `frontend/tools/gen-api`.
+- Handler tests validate every response against `openapi.yaml` (kin-openapi), so the spec can't drift from the server either.
+- A handoff sign-in forces Google's account chooser (`prompt=select_account`). A handoff gives the session to whoever created the nonce, so this keeps a stray link from signing someone in silently.
+- Admins can make invite links from Settings, as well as with `-create-invite`.
 
 ## Decisions
 - **Hosting:** home server, Tailscale Funnel on port 10000.

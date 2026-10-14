@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Renders the app icons in frontend/public from frontend/icons/pushpin.svg.
+# Needs rsvg-convert (librsvg).
+set -euo pipefail
+cd "$(dirname "$0")/../frontend"
+src=icons/pushpin.svg
+out=public
+rsvg-convert -w 192 -h 192 "$src" -o "$out/icon-192.png"
+rsvg-convert -w 512 -h 512 "$src" -o "$out/icon-512.png"
+rsvg-convert -w 180 -h 180 "$src" -o "$out/apple-touch-icon.png"
+rsvg-convert -w 32 -h 32 "$src" -o "$out/favicon-32.png"
+# Maskable: the pin shrunk into the central safe zone (80%), background
+# still full bleed.
+sed 's|<g transform="|<g transform="translate(51.2 51.2) scale(0.8) |' "$src" |
+	rsvg-convert -w 512 -h 512 -o "$out/icon-maskable-512.png"
+cp "$src" "$out/favicon.svg"

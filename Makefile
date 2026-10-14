@@ -1,5 +1,5 @@
 .PHONY: help db db-stop db-clean migrate migrate-down backend scrape-once backend-build \
-	tools fmt fmt-check lint test check
+	frontend frontend-deps frontend-build gen-api api-check tools fmt fmt-check lint test check
 
 SHELL := bash
 
@@ -27,6 +27,7 @@ MIGRATE_VERSION       := v4.19.1
 SQLFLUFF_VERSION      := 4.4.0
 
 SQLFLUFF  := uvx sqlfluff==$(SQLFLUFF_VERSION)
+PRETTIER  := frontend/node_modules/.bin/prettier
 SH_FILES  := $(shell git ls-files --cached --others --exclude-standard scripts)
 SQL_FILES := $(wildcard $(MIGRATE_DIR)/*.sql)
 # Down migrations drop things by design, so squawk only checks the ups.
@@ -55,7 +56,7 @@ migrate-down: ## Roll back the last migration
 
 # ── Backend ───────────────────────────────────────────────────────────────────
 
-backend: ## Run the server (currently the poller)
+backend: ## Run the API server and poller on 127.0.0.1:8093
 	cd backend && go run ./cmd/server
 
 scrape-once: ## Poll the page once and exit
@@ -63,6 +64,26 @@ scrape-once: ## Poll the page once and exit
 
 backend-build: ## Compile the server to backend/bin/server
 	cd backend && go build -o bin/server ./cmd/server
+
+# ── Frontend ──────────────────────────────────────────────────────────────────
+
+frontend/node_modules: frontend/package-lock.json
+	cd frontend && npm ci
+	@touch $@
+
+frontend-deps: frontend/node_modules ## Install frontend packages from the lockfile
+
+frontend: frontend/node_modules ## Run the Vite dev server on :5173 (proxies /api to `make backend`)
+	cd frontend && npm run dev
+
+frontend-build: frontend/node_modules ## Build the PWA into frontend/dist (served by Go via WEB_DIR)
+	cd frontend && npm run build
+
+gen-api: frontend/node_modules ## Regenerate frontend/src/api/schema.d.ts from backend/api/openapi.yaml
+	cd frontend && npm run gen:api
+
+api-check: gen-api ## Fail if schema.d.ts is stale
+	git diff --exit-code -- frontend/src/api/schema.d.ts
 
 # ── Checks ────────────────────────────────────────────────────────────────────
 
@@ -78,26 +99,31 @@ tools: ## Install pinned lint/format tools into ./bin and the git hooks
 	GOBIN=$(BIN) go install github.com/zricethezav/gitleaks/v8@$(GITLEAKS_VERSION)
 	GOBIN=$(BIN) go install github.com/evilmartians/lefthook/v2@$(LEFTHOOK_VERSION)
 	GOBIN=$(BIN) go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@$(MIGRATE_VERSION)
+	cd frontend && npm ci
 	lefthook install
 
-fmt: ## Format everything in place
+fmt: frontend/node_modules ## Format everything in place
 	cd backend && golangci-lint fmt
+	$(PRETTIER) --write --log-level warn .
 	$(SQLFLUFF) fix $(SQL_FILES)
 	shfmt -w $(SH_FILES)
 
-fmt-check: ## Fail if anything needs formatting (sqlfluff's layout rules run in lint)
+fmt-check: frontend/node_modules ## Fail if anything needs formatting (sqlfluff's layout rules run in lint)
 	cd backend && golangci-lint fmt --diff
+	$(PRETTIER) --check --log-level warn .
 	shfmt -d $(SH_FILES)
 
-lint: ## Run every linter
+lint: frontend/node_modules ## Run every linter
 	cd backend && golangci-lint run
 	cd backend && go tool govulncheck ./...
+	cd frontend && npm run --silent lint
 	squawk $(UP_SQL)
 	$(SQLFLUFF) lint $(SQL_FILES)
 	shellcheck $(SH_FILES)
 
 test: ## Run tests (DB tests use the docker-compose database; `make db migrate` first)
 	cd backend && BBB_TEST_DATABASE_URL=$${BBB_TEST_DATABASE_URL:-$(DB_URL)} go test -race -shuffle=on ./...
+	cd frontend && npm run --silent test
 
-check: fmt-check lint test ## Everything CI runs
+check: fmt-check lint test api-check ## Everything CI runs
 	gitleaks git --no-banner --redact .

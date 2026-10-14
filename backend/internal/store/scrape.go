@@ -230,3 +230,58 @@ func wrap(errp *error, op string) {
 		*errp = fmt.Errorf("%s: %w", op, *errp)
 	}
 }
+
+// ScrapeStatus summarizes recent polling for the app's masthead.
+type ScrapeStatus struct {
+	// CheckedAt is when the last run finished, whatever its outcome.
+	CheckedAt *time.Time
+	// OKAt is when the last run that fetched and parsed the page (or found
+	// it unchanged) finished: the "as of" time of what the app shows.
+	OKAt *time.Time
+	// Failing is true when the last run errored or was suspect.
+	Failing bool
+}
+
+// Status returns the current ScrapeStatus.
+func (s *Store) Status(ctx context.Context) (ScrapeStatus, error) {
+	var st ScrapeStatus
+	err := s.pool.QueryRow(ctx, `
+		SELECT
+			(SELECT finished_at FROM scrape_runs ORDER BY id DESC LIMIT 1),
+			(SELECT finished_at FROM scrape_runs
+				WHERE error IS NULL AND NOT suspect ORDER BY id DESC LIMIT 1),
+			coalesce((SELECT error IS NOT NULL OR suspect FROM scrape_runs
+				ORDER BY id DESC LIMIT 1), false)`,
+	).Scan(&st.CheckedAt, &st.OKAt, &st.Failing)
+	if err != nil {
+		return st, fmt.Errorf("scrape status: %w", err)
+	}
+	return st, nil
+}
+
+// StoredRun is a scrape_runs row, for the admin view.
+type StoredRun struct {
+	ID         int64
+	StartedAt  time.Time
+	FinishedAt *time.Time
+	HTTPStatus *int
+	Unchanged  bool
+	ItemCount  *int
+	Suspect    bool
+	Error      *string
+}
+
+// ListRuns returns the most recent runs, newest first.
+func (s *Store) ListRuns(ctx context.Context, limit int) ([]StoredRun, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT id, started_at, finished_at, http_status, unchanged, item_count, suspect, error
+		FROM scrape_runs ORDER BY id DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list runs: %w", err)
+	}
+	runs, err := pgx.CollectRows(rows, pgx.RowToStructByPos[StoredRun])
+	if err != nil {
+		return nil, fmt.Errorf("list runs: %w", err)
+	}
+	return runs, nil
+}

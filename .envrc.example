@@ -12,3 +12,19 @@ export CONTACT_EMAIL=
 # export SCHOOL_TZ=America/New_York
 # Comma-separated additions to the built-in signup host patterns.
 # export SIGNUP_HOSTS_EXTRA=example-signups.com
+
+# HTTP server. PUBLIC_URL is where users reach the app; locally that's the
+# Vite dev server, which proxies /api to LISTEN_ADDR.
+# export LISTEN_ADDR=127.0.0.1:8093
+# export PUBLIC_URL=http://localhost:5173
+# Built frontend to serve at "/" (production); unset in development.
+# export WEB_DIR=../frontend/dist
+# Signs the session cookie; required when PUBLIC_URL is https.
+# Generate with: openssl rand -base64 48
+export SESSION_SECRET=
+# Google OAuth client (Web application). Authorized redirect URI:
+# $PUBLIC_URL/api/auth/google/callback
+export GOOGLE_CLIENT_ID=
+export GOOGLE_CLIENT_SECRET=
+# Comma-separated emails that become admins on sign-in and need no invite.
+export ADMIN_EMAILS=

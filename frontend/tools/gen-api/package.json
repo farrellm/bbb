@@ -1,0 +1,9 @@
+{
+  "name": "bbb-gen-api",
+  "private": true,
+  "description": "openapi-typescript in its own install: it needs the TypeScript 5 compiler API, which the app's TypeScript 7 doesn't have.",
+  "devDependencies": {
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3"
+  }
+}

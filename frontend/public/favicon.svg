@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- BBB Watch app icon: a plain pushpin on Ink. Source for public/*.png;
+       regenerate with scripts/render-icons. -->
+  <rect width="512" height="512" fill="#0B2A5B"/>
+  <g transform="translate(-22 22) rotate(35 256 256) translate(0 -14)">
+    <path d="M250.5 286 L261.5 286 L257.5 440 L254.5 440 Z" fill="#C8D2E2"/>
+    <rect x="160" y="250" width="192" height="40" rx="20" fill="#FFF1A8"/>
+    <path d="M212 136 L300 136 L292 254 L220 254 Z" fill="#F2DC6B"/>
+    <rect x="180" y="96" width="152" height="46" rx="23" fill="#FFF1A8"/>
+  </g>
+</svg>

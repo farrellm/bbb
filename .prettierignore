@@ -1,0 +1,14 @@
+docs/fixtures/
+**/dist/
+**/node_modules/
+frontend/src/api/schema.d.ts
+frontend/tools/gen-api/package-lock.json
+frontend/package-lock.json
+backend/internal/bbb/testdata/
+bin/
+# Copied byte for byte from nisaba; keep them diffable against the source.
+frontend/src/lib/wordDiff.ts
+frontend/src/lib/wordDiff.md
+# Hand-formatted; Prettier would re-indent its continuation lines into the
+# bullets above them.
+docs/DESIGN.md

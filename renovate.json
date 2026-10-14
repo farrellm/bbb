@@ -11,6 +11,11 @@
     {
       "groupName": "github actions",
       "matchManagers": ["github-actions"]
+    },
+    {
+      "groupName": "frontend dev tools",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["devDependencies"]
     }
   ],
   "customManagers": [

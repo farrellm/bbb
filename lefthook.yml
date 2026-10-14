@@ -17,6 +17,13 @@ pre-commit:
     - name: shell
       glob: "scripts/*"
       run: bin/shellcheck {staged_files} && bin/shfmt -d {staged_files}
+    - name: prettier
+      glob: "*.{ts,tsx,js,json,css,md,yml,yaml,html}"
+      run: frontend/node_modules/.bin/prettier --check --ignore-unknown {staged_files}
+    - name: frontend
+      root: frontend/
+      glob: "*.{ts,tsx}"
+      run: node_modules/.bin/oxlint --type-aware --deny-warnings {staged_files} && node_modules/.bin/tsc -b
     - name: gitleaks
       run: bin/gitleaks git --pre-commit --staged --no-banner --redact .
 
