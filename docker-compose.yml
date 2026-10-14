@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: bbb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bbb
+      POSTGRES_PASSWORD: bbb
+      POSTGRES_DB: bbb
+    # 5432-5434 are taken by other local projects.
+    ports:
+      - "127.0.0.1:5435:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bbb -d bbb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

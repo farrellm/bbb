@@ -1,0 +1,5 @@
+# Counters and positions here are tiny; int is the right size.
+excluded_rules = ["prefer-bigint-over-int"]
+# golang-migrate runs each file as one multi-statement query, which Postgres
+# executes in a single implicit transaction.
+assume_in_transaction = true

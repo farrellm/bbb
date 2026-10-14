@@ -1,0 +1,48 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/farrellm/bbb
+
+linters:
+  default: standard
+  enable:
+    # HTTP clients: the poller and, later, the push sender
+    - bodyclose
+    - noctx
+    - contextcheck
+    # pgx
+    - sqlclosecheck
+    - rowserrcheck
+    # errors
+    - errorlint
+    - nilerr
+    # security
+    - gosec
+    # general
+    - revive
+    - misspell
+    - usestdlibvars
+    - perfsprint
+    - copyloopvar
+    - intrange
+    - exhaustive
+  settings:
+    exhaustive:
+      # Switches over html node types and atoms list only what they handle.
+      default-signifies-exhaustive: true
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec

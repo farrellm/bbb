@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Produce the committed parser fixture from a raw page snapshot.
+# Usage: scripts/sanitize-fixture [docs/fixtures/bbb-YYYY-MM-DD.html]
+# Defaults to the newest snapshot in docs/fixtures/.
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+src=${1:-$(find "$root/docs/fixtures" -name 'bbb-*.html' | sort | tail -n 1)}
+if [[ -z $src ]]; then
+	echo "no snapshot found in docs/fixtures/" >&2
+	exit 1
+fi
+src=$(realpath "$src")
+dest=$root/backend/internal/bbb/testdata/bbb-sample.html
+
+cd "$root/backend"
+go run ./cmd/sanitize-fixture <"$src" >"$dest"
+echo "wrote $dest from $src"

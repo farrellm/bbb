@@ -1,6 +1,6 @@
 # BBB Watch: design
 
-Status: draft, 2026-10-14. This doc describes the design only; nothing has been implemented yet.
+Status: draft, 2026-10-14. Milestone 1 (scraper core) is implemented; the rest is design only.
 
 ## Context
 
@@ -74,16 +74,18 @@ The parsed items are compared with the current state in the DB, matched on `pane
 | `panel_id` not seen before | `new` |
 | Same `panel_id`, different `content_hash` | `edit` (from_version → to_version) |
 | Same `panel_id`, different division | `moved` (stored but doesn't notify by default) |
-| Seen before, absent now (only on a non-suspect run) | `removed` (sets `removed_at`; reappearing later counts as an `edit` against the last version) |
+| Seen before, absent now (only on a non-suspect run) | `removed` (sets `removed_at`; reappearing later with different content counts as an `edit` against the last version, and with the same content just clears `removed_at`) |
 | Position change only | Ignored (position is updated but no event) |
 
 - **Repost heuristic:** if a `new` item has the same normalized title as an item removed in the last 14 days, the event gets `repost_of`. The UI can then offer "compare with previous posting".
 - Each run's events are written in one transaction along with the new `item_versions` rows. The notifier only reads events that have been committed.
+- **Baseline:** the first run against an empty database stores items and versions but no events, so a fresh deploy doesn't announce all 41 items as new.
 
 ### 4. Signup detection (`internal/bbb/signup.go`)
 - An item `is_signup` if either check matches:
-  - **Link hosts:** a body link points to a known host: `signupgenius.com`, `docs.google.com/forms`, `forms.gle`, `punchbowl.com`, `*.veracross.com`, `campbrain.com`, `helperhelper.com`, `cur8`, `clarityapp.com`, `eventbrite`, `jotform`.
-    This list lives in config so it can be extended.
+  - **Link hosts:** a body link points to a known host: `signupgenius.com`, `docs.google.com/forms`, `forms.gle`, `punchbowl.com`, `events.veracross.com`, `campbrain.com`, `campbrainregistration.com`, `helperhelper.com`, `cur8`, `clarityapp.com`, `eventbrite`, `jotform`.
+    This list lives in config so it can be extended (`SIGNUP_HOSTS_EXTRA`).
+    Only `events.veracross.com` counts: `portals.veracross.com` links are archived emails, not forms.
   - **Keywords:** a regex over the title and subheader: `sign[\s-]?up|register|registration|rsvp|volunteer|tickets?|apply|application`.
 - The matched URLs are saved as `signup_links[]`, so the UI can show a **Sign up** button that goes straight to the form.
 - **Deadline extraction** (best effort): `Deadline:\s*(.+)`, or the first date in the subheader, parsed with the school-year context so the year can be inferred. It is stored as `deadline date NULL`.
@@ -115,14 +117,14 @@ preferences(user_id pk,
             signups_any_division bool default false, -- if true, signups notify even outside chosen divisions
             min_edit_words int default 1,
             quiet_start time null, quiet_end time null)  -- pushes held, then sent as summary
-items(panel_id pk, division, position, current_version_id, first_seen_at, last_seen_at,
+items(panel_id pk, division, position, current_version_id null, first_seen_at, last_seen_at,
       removed_at null, is_signup bool, deadline date null)
 item_versions(id, panel_id, seen_at, title, subheader, body_html, body_text, content_hash,
               signup_links text[])
-events(id, panel_id, kind enum(new,edit,moved,removed), from_version_id null, to_version_id null,
+events(id, run_id, panel_id, kind enum(new,edit,moved,removed), from_version_id null, to_version_id null,
        repost_of null, became_signup bool, words_added int, words_removed int, created_at)
 deliveries(event_id, subscription_id, status, attempted_at, error)
-scrape_runs(id, started_at, http_status, body_hash, item_count, suspect bool, error)
+scrape_runs(id, started_at, finished_at, http_status, body_hash, unchanged bool, item_count, suspect bool, error)
 reads(user_id, event_id, read_at)  -- unread badges
 ```
 

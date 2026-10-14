@@ -1,0 +1,14 @@
+# Copy to .envrc (gitignored) and fill in. Every setting has a local-dev
+# default, so none of these are needed to run `make backend` locally.
+
+# export DATABASE_URL=postgres://bbb:bbb@localhost:5435/bbb?sslmode=disable
+# Point at a local fixture server to test the poller without hitting pingry.org.
+# export BBB_URL=https://www.pingry.org/experience/community-life/bbb
+# Contact shown in the User-Agent: "BBBWatch/1.0 (+you@example.org)".
+export CONTACT_EMAIL=
+# export POLL_INTERVAL=5m
+# Slower polling from 11pm to 6am school time; unset to disable.
+# export NIGHT_POLL_INTERVAL=30m
+# export SCHOOL_TZ=America/New_York
+# Comma-separated additions to the built-in signup host patterns.
+# export SIGNUP_HOSTS_EXTRA=example-signups.com

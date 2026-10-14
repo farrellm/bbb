@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS reads;
+DROP TABLE IF EXISTS deliveries;
+DROP TABLE IF EXISTS events;
+ALTER TABLE IF EXISTS items DROP CONSTRAINT IF EXISTS items_current_version_id_fkey;
+DROP TABLE IF EXISTS item_versions;
+DROP TABLE IF EXISTS items;
+DROP TABLE IF EXISTS scrape_runs;
+DROP TABLE IF EXISTS preferences;
+DROP TABLE IF EXISTS push_subscriptions;
+DROP TABLE IF EXISTS login_handoffs;
+DROP TABLE IF EXISTS invites;
+DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS event_kind;

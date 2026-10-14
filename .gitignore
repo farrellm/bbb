@@ -3,3 +3,4 @@ docs/fixtures/
 bin/
 node_modules/
 dist/
+backend/bin/
