@@ -15,7 +15,9 @@ export CONTACT_EMAIL=
 
 # HTTP server. PUBLIC_URL is where users reach the app; locally that's the
 # Vite dev server, which proxies /api to LISTEN_ADDR.
-# export LISTEN_ADDR=127.0.0.1:8093
+# export LISTEN_ADDR=127.0.0.1:8094
+# (The deployed unit overrides LISTEN_ADDR, PUBLIC_URL and WEB_DIR; see
+# scripts/run-production.)
 # export PUBLIC_URL=http://localhost:5173
 # Built frontend to serve at "/" (production); unset in development.
 # export WEB_DIR=../frontend/dist

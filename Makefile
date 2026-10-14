@@ -1,5 +1,6 @@
 .PHONY: help db db-stop db-clean migrate migrate-down backend scrape-once backend-build \
-	frontend frontend-deps frontend-build gen-api api-check tools fmt fmt-check lint test check
+	frontend frontend-deps frontend-build gen-api api-check install-service deploy logs \
+	tools fmt fmt-check lint test check
 
 SHELL := bash
 
@@ -56,7 +57,7 @@ migrate-down: ## Roll back the last migration
 
 # ── Backend ───────────────────────────────────────────────────────────────────
 
-backend: ## Run the API server and poller on 127.0.0.1:8093
+backend: ## Run the API server and poller on 127.0.0.1:8094
 	cd backend && go run ./cmd/server
 
 scrape-once: ## Poll the page once and exit
@@ -84,6 +85,21 @@ gen-api: frontend/node_modules ## Regenerate frontend/src/api/schema.d.ts from b
 
 api-check: gen-api ## Fail if schema.d.ts is stale
 	git diff --exit-code -- frontend/src/api/schema.d.ts
+
+# ── Deploy ────────────────────────────────────────────────────────────────────
+
+install-service: ## Link and enable the systemd user unit (starts at boot; needs linger)
+	systemctl --user link $(CURDIR)/deploy/bbb.service
+	systemctl --user enable bbb.service
+	@loginctl show-user $$USER -p Linger | grep -q yes || \
+		echo "note: run 'loginctl enable-linger $$USER' so it starts at boot without a login"
+
+deploy: backend-build frontend-build ## Build both and (re)start the deployed unit
+	systemctl --user daemon-reload
+	systemctl --user restart bbb.service
+
+logs: ## Follow the deployed unit's logs
+	journalctl --user -u bbb.service -f
 
 # ── Checks ────────────────────────────────────────────────────────────────────
 

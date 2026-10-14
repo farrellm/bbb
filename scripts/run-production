@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Starts the deployed server; deploy/bbb.service runs it. Settings come from
+# the repo's .envrc (secrets, Google client), then the production overrides
+# below, which .envrc can't hold because `make backend` reads it too.
+set -euo pipefail
+repo="$(cd "$(dirname "$0")/.." && pwd)"
+
+if [[ -f "$repo/.envrc" ]]; then
+	set -a
+	# shellcheck source=/dev/null
+	. "$repo/.envrc"
+	set +a
+fi
+
+# The public origin is this machine's tailnet name on the Funnel port. It's
+# looked up rather than written down so the public repo doesn't name the
+# tailnet. Fails (and the unit retries) until tailscaled is up.
+host="$(tailscale status --json | jq -er '.Self.DNSName | rtrimstr(".")')"
+
+export LISTEN_ADDR=127.0.0.1:8093
+export PUBLIC_URL="https://$host:10000"
+export WEB_DIR="$repo/frontend/dist"
+
+exec "$repo/backend/bin/server"

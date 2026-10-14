@@ -2,7 +2,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
 
 // The Go server listens here in development (LISTEN_ADDR).
-const api = "http://127.0.0.1:8093";
+const api = "http://127.0.0.1:8094";
 
 export default defineConfig({
   plugins: [react()],

@@ -29,8 +29,9 @@ type Config struct {
 	SchoolTZ    *time.Location
 	SignupHosts []string
 
-	// ListenAddr is where the HTTP server binds. Production binds loopback
-	// and is reached through Tailscale Funnel.
+	// ListenAddr is where the HTTP server binds. The default is for
+	// development; the deployed unit binds 127.0.0.1:8093, reached only
+	// through Tailscale Funnel, so the two can run side by side.
 	ListenAddr string
 	// PublicURL is the origin users reach the app at, with no trailing
 	// slash. The OAuth redirect URI and invite links are built from it, and
@@ -70,7 +71,7 @@ func Load() (Config, error) {
 		BBBURL:      env("BBB_URL", bbb.DefaultURL),
 		SignupHosts: bbb.DefaultSignupHosts,
 
-		ListenAddr:         env("LISTEN_ADDR", "127.0.0.1:8093"),
+		ListenAddr:         env("LISTEN_ADDR", "127.0.0.1:8094"),
 		PublicURL:          strings.TrimRight(env("PUBLIC_URL", "http://localhost:5173"), "/"),
 		WebDir:             os.Getenv("WEB_DIR"),
 		SessionSecret:      env("SESSION_SECRET", devSessionSecret),

@@ -25,7 +25,7 @@ Milestones 1 and 2 are done:
 make tools        # pinned linters, npm packages and git hooks
 make db migrate   # Postgres 17 in Docker on localhost:5435
 make scrape-once  # poll the page once
-make backend      # API on 127.0.0.1:8093, polling every 5 minutes
+make backend      # API on 127.0.0.1:8094, polling every 5 minutes
 make frontend     # Vite on http://localhost:5173, proxying /api
 ```
 
@@ -38,8 +38,35 @@ cd backend && go run ./cmd/server -create-invite   # prints a /join link
 go run ./cmd/server -list-users
 ```
 
-In production one process serves both: build with `make frontend-build` and
-set `WEB_DIR=../frontend/dist`.
+## Deployment
+
+The deployed instance is a systemd user unit, `deploy/bbb.service`, running
+one process for the poller, the API and the built app on `127.0.0.1:8093`.
+The only way in is Tailscale Funnel, which publishes it at
+`https://<host>.<tailnet>.ts.net:10000/` (Funnel allows only ports 443, 8443
+and 10000).
+
+```sh
+make install-service   # once: link and enable the unit, so it starts at boot
+make deploy            # build backend and frontend, restart the unit
+make logs              # follow its logs
+tailscale funnel status
+```
+
+- `scripts/run-production` starts the server. It sources `.envrc` for the
+  secrets (`SESSION_SECRET`, the Google client, `ADMIN_EMAILS`), then sets
+  the production listen address, `WEB_DIR`, and `PUBLIC_URL` from the
+  machine's tailnet name.
+- Before each start, the unit brings up Postgres and runs migrations. It
+  sets up the Funnel mapping after the server starts and removes it when
+  the server stops. If Funnel isn't enabled for the tailnet, that step times
+  out instead of blocking.
+- Starting at boot without a login needs `loginctl enable-linger $USER`.
+- Add `https://<host>.<tailnet>.ts.net:10000/api/auth/google/callback` to the
+  Google OAuth client's redirect URIs.
+- The dev server listens on 8094, so `make backend` can run alongside the
+  service. Both use the same database, though, so run the dev server with
+  `-no-poll` while the service is up.
 
 The first run records a baseline without events, so a fresh database doesn't
 report every item as new.

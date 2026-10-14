@@ -1,0 +1,38 @@
+# BBB Watch as a systemd user unit, public through Tailscale Funnel on
+# https://<host>.<tailnet>.ts.net:10000. Install with `make install-service`
+# (which links this file, so edits here apply after a daemon-reload);
+# redeploy with `make deploy`. Paths assume the repo is at ~/workspace/bbb.
+#
+# A user manager can't order itself after system units (docker, tailscaled)
+# and has no network-online.target, so boot races are handled by the
+# ExecStartPre/ExecStart steps failing and Restart=always retrying.
+
+[Unit]
+Description=BBB Watch (poller, API and PWA; public via Tailscale Funnel on :10000)
+Documentation=file://%h/workspace/bbb/README.md
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/workspace/bbb
+# Postgres runs in Docker with restart: unless-stopped; --wait blocks until
+# its healthcheck passes, since the server fails fast without a database.
+ExecStartPre=/usr/bin/docker compose -f %h/workspace/bbb/docker-compose.yml up -d --wait postgres
+# The server never migrates; this keeps a deploy with a schema change from
+# starting against the old schema.
+ExecStartPre=%h/workspace/bbb/bin/migrate -path %h/workspace/bbb/db/migrations -database postgres://bbb:bbb@localhost:5435/bbb?sslmode=disable up
+ExecStart=%h/workspace/bbb/scripts/run-production
+# Idempotent, and keeps this unit the one place that says how the app is
+# exposed, though tailscaled also persists the mapping. Bounded and allowed
+# to fail: if Funnel isn't enabled for the tailnet the CLI blocks printing
+# an enrollment link, which would otherwise wedge the unit and then kill a
+# healthy server. Check `tailscale funnel status` if the app is unreachable.
+ExecStartPost=-/usr/bin/timeout 15 /usr/bin/tailscale funnel --bg --https=10000 http://127.0.0.1:8093
+ExecStopPost=-/usr/bin/timeout 15 /usr/bin/tailscale funnel --https=10000 off
+Restart=always
+RestartSec=10
+# The server shuts down within 10 s on SIGTERM.
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

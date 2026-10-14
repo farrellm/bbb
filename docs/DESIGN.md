@@ -418,6 +418,12 @@ Where the build differs from, or pins down, the design above:
 - A handoff sign-in forces Google's account chooser (`prompt=select_account`). A handoff gives the session to whoever created the nonce, so this keeps a stray link from signing someone in silently.
 - Admins can make invite links from Settings, as well as with `-create-invite`.
 
+## Implementation notes (deploy)
+
+- `deploy/bbb.service` is committed and linked into the user manager by `make install-service`. Its `ExecStartPost` sets up the Funnel mapping (`tailscale funnel --bg --https=10000 http://127.0.0.1:8093`), and `ExecStopPost` removes it.
+- `scripts/run-production` derives `PUBLIC_URL` from `tailscale status`, so the public repo doesn't name the tailnet.
+- Development moved to `127.0.0.1:8094` so it doesn't collide with the deployed server on 8093.
+
 ## Decisions
 - **Hosting:** home server, Tailscale Funnel on port 10000.
 - **Users:** invited parents.
