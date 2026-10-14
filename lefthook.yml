@@ -1,23 +1,24 @@
 # Installed by `make tools`. Pre-commit checks staged files only; pre-push
-# runs the tests.
+# runs the tests. Tools are the pinned copies in ./bin, which hooks can't
+# expect on PATH.
 pre-commit:
   parallel: true
   jobs:
     - name: go
       root: backend/
       glob: "*.go"
-      run: golangci-lint fmt --diff && golangci-lint run --new-from-rev=HEAD
+      run: ../bin/golangci-lint fmt --diff && ../bin/golangci-lint run --new-from-rev=HEAD
     - name: squawk
       glob: "db/migrations/*.up.sql"
-      run: squawk {staged_files}
+      run: bin/squawk {staged_files}
     - name: sqlfluff
       glob: "db/migrations/*.sql"
       run: uvx sqlfluff==4.4.0 lint {staged_files}
     - name: shell
       glob: "scripts/*"
-      run: shellcheck {staged_files} && shfmt -d {staged_files}
+      run: bin/shellcheck {staged_files} && bin/shfmt -d {staged_files}
     - name: gitleaks
-      run: gitleaks git --pre-commit --staged --no-banner --redact .
+      run: bin/gitleaks git --pre-commit --staged --no-banner --redact .
 
 pre-push:
   jobs:

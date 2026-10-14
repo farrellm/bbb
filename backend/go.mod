@@ -2,6 +2,8 @@ module github.com/farrellm/bbb
 
 go 1.27.0
 
+toolchain go1.27.2
+
 require (
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/jackc/pgx/v5 v5.11.0
