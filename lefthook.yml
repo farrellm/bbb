@@ -23,7 +23,7 @@ pre-commit:
     - name: frontend
       root: frontend/
       glob: "*.{ts,tsx}"
-      run: node_modules/.bin/oxlint --type-aware --deny-warnings {staged_files} && node_modules/.bin/tsc -b
+      run: node_modules/.bin/oxlint --type-aware --deny-warnings --no-error-on-unmatched-pattern {staged_files} && node_modules/.bin/tsc -b
     - name: gitleaks
       run: bin/gitleaks git --pre-commit --staged --no-banner --redact .
 

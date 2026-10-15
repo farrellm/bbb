@@ -469,7 +469,7 @@ components:
           description: The last poll failed or looked wrong.
           type: boolean
         unread:
-          description: Events the user hasn't read, for the app badge.
+          description: Items the feed marks unread, for the app badge.
           type: integer
 
     Event:

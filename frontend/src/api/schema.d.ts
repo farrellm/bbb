@@ -397,7 +397,7 @@ export interface components {
       okAt: string | null;
       /** @description The last poll failed or looked wrong. */
       failing: boolean;
-      /** @description Events the user hasn't read, for the app badge. */
+      /** @description Items the feed marks unread, for the app badge. */
       unread: number;
     };
     Event: {

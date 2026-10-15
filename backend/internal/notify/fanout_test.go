@@ -304,6 +304,47 @@ func TestQuietHours(t *testing.T) {
 	}
 }
 
+// The badge counts what the feed marks, so reading the feed clears it.
+func TestUnreadCount(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+	u := f.user("a", nil)
+	count := func() int {
+		t.Helper()
+		n, err := f.st.UnreadCount(ctx, u)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	// Two edits to one item are one unread item.
+	f.page.Items[0].Subheader = "Deadline: Monday, November 2"
+	f.record()
+	f.page.Items[0].Subheader = "Deadline: Tuesday, November 3"
+	f.record()
+	if n := count(); n != 1 {
+		t.Fatalf("after two edits: %d, want 1", n)
+	}
+	// Reading the item's latest event, as the feed does, clears it.
+	items, err := f.st.ListItems(ctx, u, store.ItemFilter{PanelID: f.page.Items[0].PanelID})
+	if err != nil || len(items) != 1 || items[0].LatestEvent == nil {
+		t.Fatalf("items = %+v, %v", items, err)
+	}
+	if err := f.st.MarkRead(ctx, u, []int64{items[0].LatestEvent.ID}); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(); n != 0 {
+		t.Fatalf("after reading: %d, want 0", n)
+	}
+	// A removal isn't shown in the feed, so it isn't counted.
+	f.page.Items = f.page.Items[1:]
+	f.record()
+	if n := count(); n != 0 {
+		t.Errorf("after removal: %d, want 0", n)
+	}
+}
+
 func TestAlert(t *testing.T) {
 	f := setup(t)
 	admin := f.device(f.user("admin", nil)) // the fixture's users are admins

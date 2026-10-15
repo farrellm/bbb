@@ -404,16 +404,24 @@ func touchSubscription(ctx context.Context, db execer, subID int64, status strin
 	return nil
 }
 
-// UnreadCount is how many events the user hasn't read, for the app badge.
-// Moves say nothing about content and are left out, as in the feed.
+// UnreadCount is how many items the feed marks unread, for the app badge:
+// live items whose latest event (moves aside, as in the feed) is an unread
+// new or edit. Counting only what the feed shows and marks read keeps the
+// badge clearable; an earlier event under a newer one, or the removal of
+// a hidden item, would otherwise stay unread for good.
 func (s *Store) UnreadCount(ctx context.Context, userID int64) (int, error) {
 	var n int
 	err := s.pool.QueryRow(ctx, `
 		SELECT count(*)
-		FROM events e
+		FROM items i
 		CROSS JOIN (SELECT created_at FROM users WHERE id = $1) u
+		JOIN LATERAL (
+			SELECT * FROM events e
+			WHERE e.panel_id = i.panel_id AND e.kind <> 'moved'
+			ORDER BY e.id DESC LIMIT 1
+		) e ON true
 		LEFT JOIN reads r ON r.user_id = $1 AND r.event_id = e.id
-		WHERE e.kind <> 'moved' AND `+unreadExpr, userID).Scan(&n)
+		WHERE i.removed_at IS NULL AND e.kind IN ('new', 'edit') AND `+unreadExpr, userID).Scan(&n)
 	if err != nil {
 		return 0, fmt.Errorf("unread count: %w", err)
 	}
