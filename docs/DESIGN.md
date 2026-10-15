@@ -412,7 +412,7 @@ Where the build differs from, or pins down, the design above:
 - The diff sheet's URL is `?item=<panelID>&diff=<from>..<to>`; the API needs the panel id to fetch versions.
 - Events from before a user's account existed count as read. The feed and timeline mark what they show as read after it has been on screen for 1.5 s, and keep showing the marks until the next load.
 - The font is self-hosted from `@fontsource/atkinson-hyperlegible-next` instead of loaded from Google Fonts, so the installed app works offline and makes no third-party requests.
-- `wordDiff.ts` is copied byte for byte and builds in its own TypeScript project (`tsconfig.worddiff.json`), since nisaba's code doesn't pass `noUncheckedIndexedAccess`. Its vitest cases match the Go port's tests.
+- `wordDiff.ts` is copied byte for byte and builds under the app's strict TypeScript and oxlint settings with no overrides. Its vitest cases match the Go port's tests.
 - `openapi-typescript` needs the TypeScript 5 compiler API, which TypeScript 7 lacks, so it is installed separately in `frontend/tools/gen-api`.
 - Handler tests validate every response against `openapi.yaml` (kin-openapi), so the spec can't drift from the server either.
 - A handoff sign-in forces Google's account chooser (`prompt=select_account`). A handoff gives the session to whoever created the nonce, so this keeps a stray link from signing someone in silently.

@@ -21,10 +21,5 @@
     "noUnusedParameters": true
   },
   "include": ["src"],
-  "exclude": ["src/lib/wordDiff.ts", "src/sw.ts"],
-  "references": [
-    {
-      "path": "./tsconfig.worddiff.json"
-    }
-  ]
+  "exclude": ["src/sw.ts"]
 }

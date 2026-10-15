@@ -156,8 +156,8 @@ function diffTokens(
     for (let j = m - 1; j >= 0; j--) {
       lcs[i * width + j] =
         a[i] === b[j]
-          ? lcs[(i + 1) * width + (j + 1)] + 1
-          : Math.max(lcs[(i + 1) * width + j], lcs[i * width + (j + 1)])
+          ? lcs[(i + 1) * width + (j + 1)]! + 1
+          : Math.max(lcs[(i + 1) * width + j]!, lcs[i * width + (j + 1)]!)
     }
   }
 
@@ -165,19 +165,19 @@ function diffTokens(
   let j = 0
   while (i < n && j < m) {
     if (a[i] === b[j]) {
-      push('equal', a[i])
+      push('equal', a[i]!)
       i++
       j++
-    } else if (lcs[(i + 1) * width + j] >= lcs[i * width + (j + 1)]) {
-      push('remove', a[i])
+    } else if (lcs[(i + 1) * width + j]! >= lcs[i * width + (j + 1)]!) {
+      push('remove', a[i]!)
       i++
     } else {
-      push('add', b[j])
+      push('add', b[j]!)
       j++
     }
   }
-  while (i < n) push('remove', a[i++])
-  while (j < m) push('add', b[j++])
+  while (i < n) push('remove', a[i++]!)
+  while (j < m) push('add', b[j++]!)
 }
 
 // A chunk is groupChanges' working form: equal text, or a paired edit that
@@ -221,9 +221,9 @@ function groupChanges(segments: DiffSegment[]): DiffSegment[] {
   while (merged) {
     merged = false
     for (let i = 1; i < chunks.length - 1; i++) {
-      const eq = chunks[i]
-      const prev = chunks[i - 1]
-      const next = chunks[i + 1]
+      const eq = chunks[i]!
+      const prev = chunks[i - 1]!
+      const next = chunks[i + 1]!
       if (eq.type !== 'equal' || prev.type !== 'edit' || next.type !== 'edit') continue
       if (!absorbable(eq.text, prev, next)) continue
       prev.remove += eq.text + next.remove

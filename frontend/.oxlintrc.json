@@ -110,12 +110,6 @@
         "vitest/no-conditional-tests": "error",
         "vitest/require-local-test-context-for-concurrent-snapshots": "error"
       }
-    },
-    {
-      "files": ["src/lib/wordDiff.ts"],
-      "rules": {
-        "typescript/strict-boolean-expressions": "off"
-      }
     }
   ]
 }
