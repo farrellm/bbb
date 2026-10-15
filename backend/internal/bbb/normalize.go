@@ -170,7 +170,7 @@ func isContainer(a atom.Atom) bool {
 // runs of spaces collapse, every line is trimmed and blank lines collapse to
 // one.
 func tidy(s string) string {
-	s = strings.ReplaceAll(s, " ", " ")
+	s = strings.ReplaceAll(s, "\u00a0", " ")
 	s = strings.ReplaceAll(s, "\r", "")
 	lines := strings.Split(s, "\n")
 	for i, l := range lines {
@@ -183,5 +183,5 @@ func tidy(s string) string {
 
 // collapseLine reduces any whitespace run, &nbsp; included, to one space.
 func collapseLine(s string) string {
-	return strings.Join(strings.Fields(strings.ReplaceAll(s, " ", " ")), " ")
+	return strings.Join(strings.Fields(strings.ReplaceAll(s, "\u00a0", " ")), " ")
 }

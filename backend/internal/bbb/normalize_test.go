@@ -35,7 +35,6 @@ func TestNormalizeHashIgnoresWhitespaceNoise(t *testing.T) {
 	sd := SignupDetector{Hosts: DefaultSignupHosts}
 	a := Item{Title: "Book Fair", Subheader: "<p>Friday</p>", BodyHTML: "<p>Come to the fair.</p>"}
 	b := Item{Title: "Book\u00a0Fair ", Subheader: "<p>Friday&nbsp;</p>\n", BodyHTML: "<p>Come  to&nbsp;the fair.</p><p>&nbsp;</p>"}
-	b.Title = "Book Fair "
 	va, vb := Normalize(a, sd, snapshotDate), Normalize(b, sd, snapshotDate)
 	if va.ContentHash != vb.ContentHash {
 		t.Errorf("hashes differ:\n%+v\n%+v", va, vb)

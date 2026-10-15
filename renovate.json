@@ -3,6 +3,7 @@
   "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
   "schedule": ["before 6am on monday"],
   "postUpdateOptions": ["gomodTidy"],
+  "html": { "enabled": false },
   "packageRules": [
     {
       "groupName": "dev tools",
@@ -16,6 +17,16 @@
       "groupName": "frontend dev tools",
       "matchManagers": ["npm"],
       "matchDepTypes": ["devDependencies"]
+    },
+    {
+      "groupName": "postgres",
+      "matchDepNames": ["postgres"]
+    },
+    {
+      "description": "openapi-typescript needs the TypeScript 5 compiler API",
+      "matchFileNames": ["frontend/tools/gen-api/package.json"],
+      "matchDepNames": ["typescript"],
+      "allowedVersions": "<6"
     }
   ],
   "customManagers": [
