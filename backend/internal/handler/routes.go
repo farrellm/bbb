@@ -109,7 +109,9 @@ func (a *API) Routes() http.Handler {
 
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(requireAdmin)
+				r.Get("/invites", a.listInvites)
 				r.Post("/invites", a.createInvite)
+				r.Delete("/invites/{code}", a.revokeInvite)
 				r.Get("/scrape-runs", a.listRuns)
 			})
 		})

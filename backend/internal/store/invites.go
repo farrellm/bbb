@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Invite lets someone without an account create one.
@@ -47,4 +49,35 @@ func (s *Store) InviteUsable(ctx context.Context, code string) (bool, error) {
 		return false, fmt.Errorf("check invite: %w", err)
 	}
 	return ok, nil
+}
+
+// OpenInvites lists the invites that can still create an account, newest
+// first.
+func (s *Store) OpenInvites(ctx context.Context) ([]Invite, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT code, max_uses, uses, expires_at, created_at
+		FROM invites
+		WHERE NOT revoked AND uses < max_uses AND (expires_at IS NULL OR expires_at > now())
+		ORDER BY created_at DESC, code`)
+	if err != nil {
+		return nil, fmt.Errorf("open invites: %w", err)
+	}
+	invs, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Invite])
+	if err != nil {
+		return nil, fmt.Errorf("open invites: %w", err)
+	}
+	return invs, nil
+}
+
+// RevokeInvite stops an invite admitting anyone else. Accounts it already
+// made are kept.
+func (s *Store) RevokeInvite(ctx context.Context, code string) error {
+	tag, err := s.pool.Exec(ctx, `UPDATE invites SET revoked = true WHERE code = $1`, code)
+	if err != nil {
+		return fmt.Errorf("revoke invite: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

@@ -258,6 +258,29 @@ func TestAdminEmail(t *testing.T) {
 	user := e.browser()
 	e.signIn(user, "invite="+inv.Code, parent("p"))
 	decode(t, e.do(user, http.MethodPost, "/api/admin/invites", `{}`), http.StatusForbidden, nil)
+	decode(t, e.do(user, http.MethodGet, "/api/admin/invites", ""), http.StatusForbidden, nil)
+
+	// Open links list what's left; a used-up one drops off.
+	var single inviteJSON
+	decode(t, e.do(admin, http.MethodPost, "/api/admin/invites", `{}`), http.StatusCreated, &single)
+	e.signIn(e.browser(), "invite="+single.Code, parent("q"))
+	var open []inviteJSON
+	e.getJSON(admin, "/api/admin/invites", http.StatusOK, &open)
+	if len(open) != 1 || open[0].Code != inv.Code || open[0].MaxUses != 2 || open[0].Uses != 1 {
+		t.Errorf("open invites = %+v", open)
+	}
+
+	// Expiring a link closes it to the next parent and drops it off.
+	decode(t, e.do(user, http.MethodDelete, "/api/admin/invites/"+inv.Code, ""), http.StatusForbidden, nil)
+	decode(t, e.do(admin, http.MethodDelete, "/api/admin/invites/bogus", ""), http.StatusNotFound, nil)
+	decode(t, e.do(admin, http.MethodDelete, "/api/admin/invites/"+inv.Code, ""), http.StatusNoContent, nil)
+	if got := e.signIn(e.browser(), "invite="+inv.Code, parent("r")); got != "/join?error=invite_invalid" {
+		t.Errorf("expired invite: redirected to %q", got)
+	}
+	e.getJSON(admin, "/api/admin/invites", http.StatusOK, &open)
+	if len(open) != 0 {
+		t.Errorf("open invites after expiring = %+v", open)
+	}
 
 	// Deleting an account ends its sessions.
 	if err := e.store.DeleteUser(context.Background(), "P@example.org"); err != nil {

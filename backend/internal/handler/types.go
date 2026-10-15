@@ -128,7 +128,9 @@ type inviteJSON struct {
 	Code      string     `json:"code"`
 	URL       string     `json:"url"`
 	MaxUses   int        `json:"maxUses"`
+	Uses      int        `json:"uses"`
 	ExpiresAt *time.Time `json:"expiresAt"`
+	CreatedAt time.Time  `json:"createdAt"`
 }
 
 type scrapeRunJSON struct {

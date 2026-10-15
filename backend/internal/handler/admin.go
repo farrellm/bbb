@@ -5,7 +5,10 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/farrellm/bbb/internal/auth"
+	"github.com/farrellm/bbb/internal/store"
 )
 
 // Invite defaults: one parent, two weeks.
@@ -51,9 +54,37 @@ func (a *API) createInvite(w http.ResponseWriter, r *http.Request) {
 		internalError(w, r, "Could not create invite", err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, inviteJSON{
-		Code: inv.Code, URL: InviteURL(a.PublicURL, inv.Code), MaxUses: inv.MaxUses, ExpiresAt: inv.ExpiresAt,
-	})
+	writeJSON(w, http.StatusCreated, a.inviteJSON(inv))
+}
+
+// listInvites shows the invite links that still work, newest first.
+func (a *API) listInvites(w http.ResponseWriter, r *http.Request) {
+	invs, err := a.Store.OpenInvites(r.Context())
+	if err != nil {
+		internalError(w, r, "Could not load invites", err)
+		return
+	}
+	out := make([]inviteJSON, len(invs))
+	for i, inv := range invs {
+		out[i] = a.inviteJSON(inv)
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+// revokeInvite expires an invite link at once.
+func (a *API) revokeInvite(w http.ResponseWriter, r *http.Request) {
+	if err := a.Store.RevokeInvite(r.Context(), chi.URLParam(r, "code")); err != nil {
+		notFoundOr500(w, r, err, "No such invite", "Could not expire invite")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (a *API) inviteJSON(inv store.Invite) inviteJSON {
+	return inviteJSON{
+		Code: inv.Code, URL: InviteURL(a.PublicURL, inv.Code), MaxUses: inv.MaxUses, Uses: inv.Uses,
+		ExpiresAt: inv.ExpiresAt, CreatedAt: inv.CreatedAt,
+	}
 }
 
 // listRuns shows recent polls: ?limit= (default 50, at most 500).

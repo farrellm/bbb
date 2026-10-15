@@ -371,6 +371,18 @@ paths:
         "503": { $ref: "#/components/responses/Error" }
 
   /admin/invites:
+    get:
+      operationId: listInvites
+      responses:
+        "200":
+          description: Invite links that can still admit a parent, newest first.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Invite" }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
     post:
       operationId: createInvite
       requestBody:
@@ -397,6 +409,18 @@ paths:
         "400": { $ref: "#/components/responses/Error" }
         "401": { $ref: "#/components/responses/Error" }
         "403": { $ref: "#/components/responses/Error" }
+
+  /admin/invites/{code}:
+    delete:
+      operationId: revokeInvite
+      summary: Expire an invite link now. Parents who joined with it keep their accounts.
+      parameters:
+        - { name: code, in: path, required: true, schema: { type: string } }
+      responses:
+        "204": { description: Expired. }
+        "401": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
 
   /admin/scrape-runs:
     get:
@@ -637,12 +661,14 @@ components:
 
     Invite:
       type: object
-      required: [code, url, maxUses, expiresAt]
+      required: [code, url, maxUses, uses, expiresAt, createdAt]
       properties:
         code: { type: string }
         url: { type: string }
         maxUses: { type: integer }
+        uses: { type: integer, description: Parents who have joined with it. }
         expiresAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
 
     ScrapeRun:
       type: object

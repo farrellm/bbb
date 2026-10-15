@@ -340,10 +340,27 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    get?: never;
+    get: operations["listInvites"];
     put?: never;
     post: operations["createInvite"];
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/admin/invites/{code}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Expire an invite link now. Parents who joined with it keep their accounts. */
+    delete: operations["revokeInvite"];
     options?: never;
     head?: never;
     patch?: never;
@@ -507,8 +524,12 @@ export interface components {
       code: string;
       url: string;
       maxUses: number;
+      /** @description Parents who have joined with it. */
+      uses: number;
       /** Format: date-time */
       expiresAt: string | null;
+      /** Format: date-time */
+      createdAt: string;
     };
     ScrapeRun: {
       /** Format: int64 */
@@ -1126,6 +1147,28 @@ export interface operations {
       503: components["responses"]["Error"];
     };
   };
+  listInvites: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Invite links that can still admit a parent, newest first. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Invite"][];
+        };
+      };
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+    };
+  };
   createInvite: {
     parameters: {
       query?: never;
@@ -1159,6 +1202,29 @@ export interface operations {
       400: components["responses"]["Error"];
       401: components["responses"]["Error"];
       403: components["responses"]["Error"];
+    };
+  };
+  revokeInvite: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        code: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Expired. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["Error"];
+      403: components["responses"]["Error"];
+      404: components["responses"]["Error"];
     };
   };
   listScrapeRuns: {
